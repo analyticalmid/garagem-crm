@@ -1,0 +1,505 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design System — Garagem CRM Premium Dark */
+
+@layer base {
+  :root {
+    /* Primary — Electric Blue */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 40%;
+    --secondary-foreground: 220 14% 96%;
+
+    /* Backgrounds — Deep space dark */
+    --background: 228 40% 6%;
+    --foreground: 216 20% 92%;
+
+    /* Surfaces — Glass-like cards */
+    --card: 225 30% 10%;
+    --card-foreground: 216 20% 92%;
+    --popover: 225 30% 10%;
+    --popover-foreground: 216 20% 92%;
+
+    /* Muted */
+    --muted: 225 25% 14%;
+    --muted-foreground: 220 10% 55%;
+
+    /* Accent */
+    --accent: 225 25% 14%;
+    --accent-foreground: 216 20% 92%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Success */
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Borders — Subtle glowing */
+    --border: 225 20% 16%;
+    --input: 225 20% 16%;
+    --ring: 217 91% 60%;
+
+    /* Radius */
+    --radius: 0.75rem;
+
+    /* Sidebar — Deeper dark + glass */
+    --sidebar-background: 228 40% 5%;
+    --sidebar-foreground: 220 14% 92%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 225 30% 12%;
+    --sidebar-accent-foreground: 220 14% 92%;
+    --sidebar-border: 220 40% 100% / 0.06;
+    --sidebar-ring: 217 91% 60%;
+    --sidebar-muted: 220 10% 50%;
+
+    /* Kanban — Leads */
+    --kanban-novo: 217 91% 60%;
+    --kanban-novo-bg: 217 91% 60% / 0.12;
+    --kanban-negociando: 38 92% 50%;
+    --kanban-negociando-bg: 38 92% 50% / 0.12;
+    --kanban-vendido: 160 84% 39%;
+    --kanban-vendido-bg: 160 84% 39% / 0.12;
+    --kanban-perdido: 0 84% 60%;
+    --kanban-perdido-bg: 0 84% 60% / 0.12;
+
+    /* Pre-venda */
+    --prevenda-novo: 213 94% 68%;
+    --prevenda-novo-bg: 213 94% 68% / 0.12;
+    --prevenda-negociando: 24 95% 61%;
+    --prevenda-negociando-bg: 24 95% 61% / 0.12;
+    --prevenda-analise: 48 96% 56%;
+    --prevenda-analise-bg: 48 96% 56% / 0.12;
+    --prevenda-comprado: 173 67% 50%;
+    --prevenda-comprado-bg: 173 67% 50% / 0.12;
+    --prevenda-standby: 220 10% 50%;
+    --prevenda-standby-bg: 220 10% 50% / 0.12;
+
+    /* Tarefas */
+    --kanban-afazer: 217 91% 60%;
+    --kanban-andamento: 38 92% 50%;
+    --kanban-concluida: 160 84% 39%;
+    --kanban-cancelada: 220 10% 50%;
+
+    /* Status */
+    --status-available: 160 84% 39%;
+    --status-available-bg: 160 84% 39% / 0.12;
+    --status-sold: 220 10% 50%;
+    --status-sold-bg: 220 10% 50% / 0.12;
+    --status-negotiating: 38 92% 50%;
+    --status-negotiating-bg: 38 92% 50% / 0.12;
+    --status-new: 217 91% 60%;
+    --status-new-bg: 217 91% 60% / 0.12;
+    --status-maintenance: 25 95% 53%;
+    --status-maintenance-bg: 25 95% 53% / 0.12;
+
+    /* Chart */
+    --chart-1: 217 91% 60%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 48 96% 53%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 280 65% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background: linear-gradient(180deg, #050914 0%, #071120 46%, #0b1f47 100%);
+    background-attachment: fixed;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Custom scrollbar for dark theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(225 20% 22%);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(225 20% 30%);
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Glass card effect */
+  .glass {
+    background: linear-gradient(135deg, hsl(225 30% 12% / 0.8), hsl(225 30% 8% / 0.6));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid hsl(225 20% 20% / 0.5);
+  }
+
+  .glass-subtle {
+    background: hsl(225 30% 10% / 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid hsl(225 20% 18% / 0.4);
+  }
+
+  /* Glow effects */
+  .glow-blue {
+    box-shadow: 0 0 20px hsl(217 91% 60% / 0.15), 0 0 60px hsl(217 91% 60% / 0.05);
+  }
+
+  .glow-blue-sm {
+    box-shadow: 0 0 10px hsl(217 91% 60% / 0.1), 0 0 30px hsl(217 91% 60% / 0.03);
+  }
+
+  .glow-border {
+    border: 1px solid hsl(217 91% 60% / 0.2);
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(217, 91%, 70%), hsl(190, 90%, 60%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Animated gradient background */
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(hsl(225 20% 16% / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(225 20% 16% / 0.5) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Radial glow on main area */
+  .bg-radial-glow {
+    position: relative;
+  }
+  .bg-radial-glow::before {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 600px;
+    background: radial-gradient(ellipse, hsl(217 91% 60% / 0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .bg-app-shell {
+    position: relative;
+    background: linear-gradient(180deg, #050914 0%, #071120 46%, #0b1f47 100%);
+    isolation: isolate;
+  }
+
+  .bg-app-shell::before,
+  .bg-app-shell::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -2;
+  }
+
+  .bg-app-shell::before {
+    background:
+      radial-gradient(circle at 18% 16%, rgba(47, 107, 255, 0.16), transparent 0 18%),
+      radial-gradient(circle at 86% 12%, rgba(90, 136, 255, 0.22), transparent 0 20%),
+      radial-gradient(circle at 32% 100%, rgba(127, 165, 255, 0.18), transparent 0 22%);
+    filter: blur(18px);
+    opacity: 0.95;
+  }
+
+  .bg-app-shell::after {
+    background: linear-gradient(180deg, rgba(5, 9, 20, 0.08) 0%, rgba(5, 9, 20, 0.18) 100%);
+    z-index: -1;
+  }
+
+  /* Hover card lift */
+  .card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px hsl(217 91% 60% / 0.08), 0 2px 8px rgba(0,0,0,0.3);
+    border-color: hsl(217 91% 60% / 0.25);
+  }
+
+  /* Shine on hover */
+  .shine-hover {
+    position: relative;
+    overflow: hidden;
+  }
+  .shine-hover::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent 40%,
+      hsl(217 91% 60% / 0.03) 50%,
+      transparent 60%
+    );
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+  }
+  .shine-hover:hover::after {
+    transform: translateX(100%);
+  }
+
+  /* Pulse dot animation */
+  .pulse-dot {
+    position: relative;
+  }
+  .pulse-dot::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    animation: pulse-ring 2s ease infinite;
+  }
+
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0 hsl(217 91% 60% / 0.3);
+    }
+    70% {
+      box-shadow: 0 0 0 6px hsl(217 91% 60% / 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 hsl(217 91% 60% / 0);
+    }
+  }
+
+  /* Floating orb animation for login */
+  @keyframes float-orb {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(10px, -20px) scale(1.05); }
+    50% { transform: translate(-5px, -10px) scale(0.98); }
+    75% { transform: translate(-15px, -25px) scale(1.02); }
+  }
+
+  .animate-float-orb {
+    animation: float-orb 8s ease-in-out infinite;
+  }
+
+  .crm-loader-enter {
+    animation: crm-loader-enter-soft 520ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .crm-loader-orb {
+    animation: crm-loader-breathe 2.8s ease-in-out infinite;
+  }
+
+  .crm-shell-enter {
+    animation: crm-shell-soft-in 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .crm-sidebar-enter {
+    animation: crm-sidebar-soft-in 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .crm-panel-enter {
+    animation: crm-panel-soft-in 460ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .crm-header-enter {
+    animation: crm-header-soft-in 460ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .crm-route-enter {
+    animation: crm-route-crossfade 340ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: center top;
+    will-change: opacity, transform;
+  }
+
+  .celebration-card {
+    background:
+      radial-gradient(circle at top, rgba(96, 165, 250, 0.18), transparent 52%),
+      linear-gradient(180deg, rgba(10, 18, 38, 0.92), rgba(6, 12, 26, 0.94));
+    animation: celebration-card-enter 420ms ease-out;
+  }
+
+  .celebration-confetti {
+    position: absolute;
+    top: -8%;
+    border-radius: 999px;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.12);
+    opacity: 0;
+    transform: translateY(0) rotate(0deg);
+    animation: celebration-confetti-fall 3.4s ease-out forwards;
+  }
+
+  .celebration-firework-ring {
+    animation: celebration-ring-burst 1800ms ease-out forwards;
+  }
+
+  .celebration-float-spark {
+    animation: celebration-spark-float 2400ms ease-out forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .crm-loader-enter,
+    .crm-loader-orb,
+    .crm-shell-enter,
+    .crm-sidebar-enter,
+    .crm-panel-enter,
+    .crm-header-enter,
+    .crm-route-enter {
+      animation: none !important;
+    }
+  }
+}
+
+@keyframes crm-loader-enter-soft {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes crm-shell-soft-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.996);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes crm-sidebar-soft-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes crm-panel-soft-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes crm-header-soft-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes crm-route-crossfade {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes crm-loader-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.12), 0 0 40px rgba(37, 99, 235, 0.18);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0), 0 0 56px rgba(59, 130, 246, 0.22);
+    transform: scale(1.025);
+  }
+}
+
+@keyframes celebration-card-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes celebration-confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -24px, 0) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc((var(--drift, 0) * 1px) + 8px), 88vh, 0) rotate(540deg);
+  }
+}
+
+@keyframes celebration-ring-burst {
+  0% {
+    opacity: 0.65;
+    transform: translateX(-50%) scale(0.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1.5);
+  }
+}
+
+@keyframes celebration-spark-float {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.6) rotate(-12deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-48px) scale(1.08) rotate(12deg);
+  }
+}
