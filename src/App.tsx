@@ -6,12 +6,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { EssencialFeatureGate } from "@/components/EssencialFeatureGate";
 import Layout from "./components/Layout";
 import { Loader2 } from "lucide-react";
 import NotFound from "./views/NotFound";
 import { routeImporters } from "@/lib/routePreload";
 
 const Login = lazy(routeImporters["/"]);
+const Checkout = lazy(routeImporters["/checkout/:plan"]);
+const CheckoutSuccess = lazy(routeImporters["/checkout/sucesso"]);
+const ResetPassword = lazy(routeImporters["/redefinir-senha"]);
 const Dashboard = lazy(routeImporters["/dashboard"]);
 const Leads = lazy(routeImporters["/leads"]);
 const LeadDetail = lazy(routeImporters["/leads/:id"]);
@@ -26,8 +30,17 @@ const Tarefas = lazy(routeImporters["/tarefas"]);
 const Exportar = lazy(routeImporters["/exportar"]);
 const Margens = lazy(routeImporters["/margens"]);
 const Configuracoes = lazy(routeImporters["/configuracoes"]);
+const Whatsapp = lazy(routeImporters["/whatsapp"]);
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function PageLoader() {
   return (
@@ -57,78 +70,87 @@ function App() {
           <SuspendedPage>
             <Routes>
               <Route path="/" element={<Login />} />
-            <Route path="/dashboard" element={
+              <Route path="/entrar" element={<Login />} />
+              <Route path="/checkout/:plan" element={<Checkout />} />
+              <Route path="/checkout/sucesso" element={<CheckoutSuccess />} />
+              <Route path="/redefinir-senha" element={<ResetPassword />} />
+              <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Layout><Dashboard /></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/leads" element={
+              } />
+              <Route path="/leads" element={
               <ProtectedRoute>
                 <Layout><Leads /></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/leads/:id" element={
+              } />
+              <Route path="/leads/:id" element={
               <ProtectedRoute>
                 <Layout><LeadDetail /></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/prevenda" element={
+              } />
+              <Route path="/prevenda" element={
               <ProtectedRoute>
-                <Layout><PrevendaLeads /></Layout>
+                <Layout><EssencialFeatureGate featureName="Prospecção"><PrevendaLeads /></EssencialFeatureGate></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/prevenda/:id" element={
+              } />
+              <Route path="/prevenda/:id" element={
               <ProtectedRoute>
-                <Layout><PrevendaLeadDetail /></Layout>
+                <Layout><EssencialFeatureGate featureName="Prospecção"><PrevendaLeadDetail /></EssencialFeatureGate></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/veiculos" element={
+              } />
+              <Route path="/veiculos" element={
               <ProtectedRoute>
                 <Layout><Vehicles /></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/veiculos/:id" element={
+              } />
+              <Route path="/veiculos/:id" element={
               <ProtectedRoute>
                 <Layout><VehicleDetail /></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/vendas" element={
+              } />
+              <Route path="/vendas" element={
               <ProtectedRoute>
                 <Layout><Vendas /></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/pos-venda" element={
+              } />
+              <Route path="/pos-venda" element={
               <ProtectedRoute>
-                <Layout><PosVenda /></Layout>
+                <Layout><EssencialFeatureGate featureName="Pós-Venda"><PosVenda /></EssencialFeatureGate></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/tarefas" element={
+              } />
+              <Route path="/tarefas" element={
               <ProtectedRoute>
                 <Layout><Tarefas /></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/exportar" element={
+              } />
+              <Route path="/exportar" element={
               <ProtectedRoute requiredRoles={["admin", "gerente"]}>
                 <Layout><Exportar /></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/margens" element={
+              } />
+              <Route path="/margens" element={
               <ProtectedRoute requiredRoles={["admin", "gerente"]}>
                 <Layout><Margens /></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/configuracoes" element={
+              } />
+              <Route path="/configuracoes" element={
               <ProtectedRoute>
                 <Layout><Configuracoes /></Layout>
               </ProtectedRoute>
-            } />
-            <Route path="/usuarios" element={
+              } />
+              <Route path="/usuarios" element={
               <ProtectedRoute requiredRoles={["admin"]}>
                 <Usuarios />
               </ProtectedRoute>
-            } />
-            <Route path="/config" element={<Navigate to="/configuracoes" replace />} />
-            <Route path="*" element={<NotFound />} />
+              } />
+              <Route path="/whatsapp" element={
+              <ProtectedRoute>
+                <Layout><Whatsapp /></Layout>
+              </ProtectedRoute>
+              } />
+              <Route path="/config" element={<Navigate to="/configuracoes" replace />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </SuspendedPage>
         </BrowserRouter>

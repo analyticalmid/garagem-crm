@@ -39,23 +39,97 @@ export type Database = {
   }
   public: {
     Tables: {
+      billing_checkouts: {
+        Row: {
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          metadata: Json
+          password_email_sent_at: string | null
+          payment_status: string
+          plan_type: Database["public"]["Enums"]["plan_type"]
+          stripe_customer_id: string | null
+          stripe_event_id: string
+          stripe_payment_intent_id: string | null
+          stripe_payment_link_id: string | null
+          stripe_payment_link_url: string | null
+          stripe_session_id: string
+          tenant_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          metadata?: Json
+          password_email_sent_at?: string | null
+          payment_status?: string
+          plan_type: Database["public"]["Enums"]["plan_type"]
+          stripe_customer_id?: string | null
+          stripe_event_id: string
+          stripe_payment_intent_id?: string | null
+          stripe_payment_link_id?: string | null
+          stripe_payment_link_url?: string | null
+          stripe_session_id: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          metadata?: Json
+          password_email_sent_at?: string | null
+          payment_status?: string
+          plan_type?: Database["public"]["Enums"]["plan_type"]
+          stripe_customer_id?: string | null
+          stripe_event_id?: string
+          stripe_payment_intent_id?: string | null
+          stripe_payment_link_id?: string | null
+          stripe_payment_link_url?: string | null
+          stripe_session_id?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_checkouts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       Contatos_Whatsapp: {
         Row: {
           created_at: string
           id: number
           nome: string | null
+          "observação": string | null
           Telefone_Whatsapp: string | null
         }
         Insert: {
           created_at?: string
           id?: number
           nome?: string | null
+          "observação"?: string | null
           Telefone_Whatsapp?: string | null
         }
         Update: {
           created_at?: string
           id?: number
           nome?: string | null
+          "observação"?: string | null
           Telefone_Whatsapp?: string | null
         }
         Relationships: []
@@ -243,6 +317,47 @@ export type Database = {
         }
         Relationships: []
       }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          created_by: string
+          email: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          created_by: string
+          email: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          created_by?: string
+          email?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_venda_cards: {
         Row: {
           cliente_nome: string
@@ -251,6 +366,7 @@ export type Database = {
           etapa: string
           id: string
           lead_id: number | null
+          metadata: Json | null
           mensagem_zap: string
           ordem: number
           origem: string
@@ -264,6 +380,7 @@ export type Database = {
           status_tone: string
           telefone: string
           updated_at: string
+          venda_id: string | null
           veiculo_nome: string
         }
         Insert: {
@@ -273,6 +390,7 @@ export type Database = {
           etapa?: string
           id?: string
           lead_id?: number | null
+          metadata?: Json | null
           mensagem_zap: string
           ordem?: number
           origem?: string
@@ -286,6 +404,7 @@ export type Database = {
           status_tone?: string
           telefone: string
           updated_at?: string
+          venda_id?: string | null
           veiculo_nome: string
         }
         Update: {
@@ -295,6 +414,7 @@ export type Database = {
           etapa?: string
           id?: string
           lead_id?: number | null
+          metadata?: Json | null
           mensagem_zap?: string
           ordem?: number
           origem?: string
@@ -308,6 +428,7 @@ export type Database = {
           status_tone?: string
           telefone?: string
           updated_at?: string
+          venda_id?: string | null
           veiculo_nome?: string
         }
         Relationships: [
@@ -375,6 +496,33 @@ export type Database = {
             referencedColumns: ["vehicle_id"]
           },
         ]
+      }
+      mensagens_whatsapp: {
+        Row: {
+          created_at: string | null
+          enviado_pelo_vendedor: boolean | null
+          id: string | number
+          mensagem: string | null
+          nome_lead: string | null
+          telefone_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          enviado_pelo_vendedor?: boolean | null
+          id?: string | number
+          mensagem?: string | null
+          nome_lead?: string | null
+          telefone_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          enviado_pelo_vendedor?: boolean | null
+          id?: string | number
+          mensagem?: string | null
+          nome_lead?: string | null
+          telefone_id?: string | null
+        }
+        Relationships: []
       }
       Memoria_PostgreSQL_Whatsapp: {
         Row: {
@@ -638,6 +786,8 @@ export type Database = {
           id: string
           is_active: boolean
           phone: string | null
+          plan_type: Database["public"]["Enums"]["plan_type"]
+          tenant_id: string
           updated_at: string
         }
         Insert: {
@@ -648,6 +798,8 @@ export type Database = {
           id: string
           is_active?: boolean
           phone?: string | null
+          plan_type?: Database["public"]["Enums"]["plan_type"]
+          tenant_id?: string
           updated_at?: string
         }
         Update: {
@@ -658,6 +810,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           phone?: string | null
+          plan_type?: Database["public"]["Enums"]["plan_type"]
+          tenant_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -718,23 +872,44 @@ export type Database = {
           },
         ]
       }
+      tenants: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
+          tenant_id?: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          tenant_id?: string
           user_id?: string
         }
         Relationships: []
@@ -747,6 +922,7 @@ export type Database = {
           created_at: string | null
           data_venda: string | null
           forma_pagamento: Database["public"]["Enums"]["forma_pagamento"] | null
+          historico_saude: Json | null
           id: string
           km_veiculo: number | null
           marca_veiculo: string | null
@@ -769,6 +945,7 @@ export type Database = {
           forma_pagamento?:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
+          historico_saude?: Json | null
           id?: string
           km_veiculo?: number | null
           marca_veiculo?: string | null
@@ -791,6 +968,7 @@ export type Database = {
           forma_pagamento?:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
+          historico_saude?: Json | null
           id?: string
           km_veiculo?: number | null
           marca_veiculo?: string | null
@@ -830,6 +1008,26 @@ export type Database = {
       }
     }
     Views: {
+      view_oportunidades_pos_venda: {
+        Row: {
+          comprador_nome: string | null
+          comprador_telefone: string | null
+          data_venda: string | null
+          dias_desde_venda: number | null
+          dono_loja_id: string | null
+          historico_saude: Json | null
+          mensagem_sugerida: string | null
+          modelo_veiculo: string | null
+          nome_cliente: string | null
+          oportunidade_kind: string | null
+          oportunidade_label: string | null
+          prazo_label: string | null
+          suggested_column_id: string | null
+          venda_id: string | null
+          veiculo_nome: string | null
+        }
+        Relationships: []
+      }
       v_estoque_disponivel: {
         Row: {
           active: boolean | null
@@ -944,6 +1142,10 @@ export type Database = {
         Args: { _notification_id: string }
         Returns: undefined
       }
+      validate_tenant_user_limit: {
+        Args: { _tenant_id?: string }
+        Returns: boolean
+      }
       sync_notification_automation: { Args: never; Returns: Json }
       sync_prune_inventory: {
         Args: { p_hard_delete?: boolean; p_sync_id: string }
@@ -955,6 +1157,7 @@ export type Database = {
       forma_pagamento: "avista" | "financiado"
       notification_category: "system" | "lead" | "task" | "sale" | "security"
       notification_type: "info" | "success" | "warning" | "error"
+      plan_type: "pro" | "essencial"
       task_priority: "baixa" | "media" | "alta"
       task_status: "a_fazer" | "em_andamento" | "concluida" | "cancelada"
       vehicle_status: "disponivel" | "negociando" | "vendido"
