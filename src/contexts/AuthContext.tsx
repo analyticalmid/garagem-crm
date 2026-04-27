@@ -1,20 +1,25 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { Profile, AppRole } from '@/types/auth';
+import { Profile, AppRole, PlanType } from '@/types/auth';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   role: AppRole | null;
+  planType: PlanType | null;
+  tenantId: string | null;
   isLoading: boolean;
   isAdmin: boolean;
   isGerente: boolean;
   isVendedor: boolean;
+  isPro: boolean;
+  isEssencial: boolean;
   canManageUsers: boolean;
   canAssignLeads: boolean;
   canViewAllLeads: boolean;
+  canUseEssencialFeatures: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -33,10 +38,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = role === 'admin';
   const isGerente = role === 'gerente';
   const isVendedor = role === 'vendedor';
+  const planType = profile?.plan_type ?? null;
+  const tenantId = profile?.tenant_id ?? null;
+  const isPro = planType === 'pro';
+  const isEssencial = planType === 'essencial';
   // Apenas admin pode gerenciar usuários
   const canManageUsers = isAdmin;
   const canAssignLeads = isAdmin || isGerente;
   const canViewAllLeads = isAdmin || isGerente;
+  const canUseEssencialFeatures = isEssencial || isAdmin || isGerente;
 
   const fetchProfileAndRole = async (accessToken: string | null | undefined) => {
     try {
@@ -164,13 +174,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         profile,
         role,
+        planType,
+        tenantId,
         isLoading,
         isAdmin,
         isGerente,
         isVendedor,
+        isPro,
+        isEssencial,
         canManageUsers,
         canAssignLeads,
         canViewAllLeads,
+        canUseEssencialFeatures,
         signIn,
         refreshProfile,
         signOut,

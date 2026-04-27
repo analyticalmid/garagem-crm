@@ -42,7 +42,9 @@ export async function apiFetch<T>(path: string, init: ApiInit = {}): Promise<T> 
   if (!response.ok) {
     const message =
       typeof payload === "object" && payload && "error" in payload
-        ? String(payload.error)
+        ? typeof payload.error === "string"
+          ? payload.error
+          : JSON.stringify(payload.error)
         : "Erro ao chamar backend.";
     throw new Error(message);
   }

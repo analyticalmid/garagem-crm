@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,13 @@ const Login = () => {
   const { toast } = useToast();
   const { signIn, user, profile } = useAuth();
 
-  // Redirect if already authenticated
+  useEffect(() => {
+    if (user && profile?.is_active) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate, profile?.is_active, user]);
+
   if (user && profile?.is_active) {
-    navigate("/dashboard");
     return null;
   }
 
@@ -56,7 +60,7 @@ const Login = () => {
           title: "Login realizado",
           description: "Bem-vindo ao CRM da Garagem",
         });
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
       }
     } catch {
       toast({
