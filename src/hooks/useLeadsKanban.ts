@@ -12,8 +12,10 @@ export function useLeadsKanban() {
     queryKey: ["leads-kanban", user?.id, canViewAllLeads],
     queryFn: () => apiFetch<Lead[]>(dataUrl("leads-kanban")),
     enabled: !!user,
-    refetchInterval: 15000,
-    refetchOnWindowFocus: true,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   // Mutation para atualizar status com optimistic update

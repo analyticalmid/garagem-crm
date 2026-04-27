@@ -13,8 +13,10 @@ export function useNotifications() {
   const notificationsQuery = useQuery({
     queryKey: ["notifications", user?.id],
     enabled: !!user,
-    refetchInterval: 30000,
-    refetchOnWindowFocus: true,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: () => apiFetch<NotificationRecord[]>(dataUrl("notifications")),
   });
 

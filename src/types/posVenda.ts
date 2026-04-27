@@ -4,10 +4,20 @@ export type PosVendaTone = "azul" | "verde" | "amarelo" | "vermelho" | "neutro";
 
 export type PosVendaOrigem = "Automático" | "Manual";
 
+export type PosVendaSmartKind = "checkup_180" | "upgrade_365";
+
+export interface PosVendaSmartBadge {
+  kind: PosVendaSmartKind;
+  label: string;
+  description: string;
+  pulse?: boolean;
+}
+
 export interface PosVendaCard {
   id: string;
   sourceKey: string;
   columnId: PosVendaColumnId;
+  vendaId: string | null;
   cliente: string;
   telefone: string;
   veiculo: string;
@@ -21,6 +31,9 @@ export interface PosVendaCard {
   statusTone: PosVendaTone;
   mensagemZap: string;
   ordem: number;
+  historicoSaudeCount: number;
+  lastHealthInteractionAt: string | null;
+  smartBadge: PosVendaSmartBadge | null;
 }
 
 export interface CreatePosVendaCardInput {

@@ -222,8 +222,16 @@ const Vendas = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-7 w-40 rounded-lg bg-white/[0.06] animate-pulse" />
+          <div className="h-10 w-36 rounded-xl bg-white/[0.06] animate-pulse" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-16 w-full rounded-xl bg-white/[0.04] animate-pulse" style={{ animationDelay: `${i * 50}ms` }} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -280,7 +288,7 @@ const Vendas = () => {
                 </div>
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Ticket médio</p>
-                  <p className="mt-2 text-2xl font-semibold text-foreground tabular-nums">{formatCurrency(totalSales ? totalSalesValue / totalSales : 0)}</p>
+                  <p className="mt-2 text-base font-semibold text-foreground tabular-nums leading-tight">{formatCurrency(totalSales ? totalSalesValue / totalSales : 0)}</p>
                 </div>
               </div>
             </div>
@@ -447,52 +455,45 @@ const Vendas = () => {
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                 {manualSales.map((sale) => (
-                  <Card key={sale.id} className="overflow-hidden rounded-[26px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(18,24,40,0.96),rgba(11,15,28,0.96))] p-0 shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
-                    <div className="border-b border-white/[0.05] p-6">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <Badge variant="secondary" className="mb-3 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-blue-200/80">Manual</Badge>
-                          <h3 className="text-lg font-semibold text-foreground">
-                            {(sale as { nome_veiculo?: string }).nome_veiculo || "Veículo não informado"}
-                          </h3>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {[(sale as { marca_veiculo?: string }).marca_veiculo, (sale as { modelo_veiculo?: string }).modelo_veiculo, (sale as { ano_veiculo?: number }).ano_veiculo].filter(Boolean).join(" • ")}
-                          </p>
-                        </div>
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/12 text-emerald-300">
-                          <ArrowUpRight className="h-5 w-5" />
-                        </div>
+                  <Card key={sale.id} className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[linear-gradient(180deg,rgba(17,23,39,0.97),rgba(10,14,26,0.97))] p-0 shadow-[0_6px_20px_rgba(0,0,0,0.22)]">
+                    <div className="flex items-center justify-between gap-3 border-b border-white/[0.05] px-4 py-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-widest text-blue-200/80">Manual</span>
+                        <h3 className="truncate text-sm font-semibold text-foreground">
+                          {(sale as { nome_veiculo?: string }).nome_veiculo || "Veículo não informado"}
+                        </h3>
+                      </div>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {[(sale as { marca_veiculo?: string }).marca_veiculo, (sale as { ano_veiculo?: number }).ano_veiculo].filter(Boolean).join(" · ")}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 divide-x divide-white/[0.05] border-b border-white/[0.05]">
+                      <div className="px-4 py-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Preço</p>
+                        <p className="mt-0.5 text-sm font-semibold text-emerald-400">{formatCurrency(sale.preco_venda)}</p>
+                      </div>
+                      <div className="px-4 py-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Data</p>
+                        <p className="mt-0.5 text-sm font-medium text-foreground">{formatDate(sale.data_venda)}</p>
+                      </div>
+                      <div className="px-4 py-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Pagamento</p>
+                        <p className="mt-0.5 text-sm font-medium text-foreground">
+                          {sale.forma_pagamento === "avista" ? "À Vista" : sale.forma_pagamento === "financiado" ? "Financiado" : "—"}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="space-y-4 p-6">
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Preço</p>
-                          <p className="mt-2 text-lg font-semibold text-emerald-300">{formatCurrency(sale.preco_venda)}</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Data</p>
-                          <p className="mt-2 text-sm font-medium text-foreground">{formatDate(sale.data_venda)}</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Pagamento</p>
-                          <p className="mt-2 text-sm font-medium text-foreground">{sale.forma_pagamento === "avista" ? "À Vista" : sale.forma_pagamento === "financiado" ? "Financiado" : "Não informado"}</p>
-                        </div>
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{sale.comprador_nome || "Comprador não informado"}</p>
+                        {sale.comprador_telefone && <p className="text-xs text-muted-foreground">{sale.comprador_telefone}</p>}
                       </div>
-
-                      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Comprador</p>
-                        <p className="mt-2 text-sm font-medium text-foreground">{sale.comprador_nome || "Não informado"}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">{sale.comprador_telefone || "Sem telefone"}</p>
-                      </div>
-
                       {sale.observacao && (
-                        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-muted-foreground">
-                          {sale.observacao}
-                        </div>
+                        <p className="max-w-[140px] truncate text-xs text-muted-foreground/60">{sale.observacao}</p>
                       )}
                     </div>
                   </Card>
@@ -513,7 +514,7 @@ const Vendas = () => {
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
               {soldVehicles.map((vehicle) => {
                 const formData = getFormData(vehicle.vehicle_id);
                 const isFinanciado = formData.formaPagamento === "financiado";
@@ -523,128 +524,101 @@ const Vendas = () => {
                 const temDesconto = precoVenda > 0 && precoVenda < precoTabela;
 
                 return (
-                  <Card key={vehicle.vehicle_id} className="overflow-hidden rounded-[28px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(17,23,39,0.97),rgba(10,14,26,0.97))] p-0 shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
-                    <div className="border-b border-white/[0.05] px-6 py-5">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                          <Badge variant="default" className="mb-3 rounded-full border-0 bg-white/[0.08] px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-blue-100">{vehicle.marca}</Badge>
-                          <h3 
-                            className="cursor-pointer truncate text-lg font-semibold text-foreground transition-colors hover:text-primary"
-                            onClick={() => navigate(`/veiculos/${vehicle.vehicle_id}`)}
-                          >
-                            {vehicle.title || "Sem título"}
-                          </h3>
-                          <p className="mt-1 text-sm text-muted-foreground">{[vehicle.modelo, vehicle.ano].filter(Boolean).join(" • ")}</p>
-                        </div>
-                        <Select
-                          value={vehicle.status || "vendido"}
-                          onValueChange={(value) => handleStatusChange(vehicle.vehicle_id, value)}
-                        >
-                          <SelectTrigger className={`h-8 w-auto rounded-full border px-3 text-xs ${statusConfig[vehicle.status || "vendido"].className}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-card border-border z-50">
-                            <SelectItem value="disponivel" className="text-green-400">Disponível</SelectItem>
-                            <SelectItem value="negociando" className="text-yellow-400">Negociando</SelectItem>
-                            <SelectItem value="vendido" className="text-red-400">Vendido</SelectItem>
-                          </SelectContent>
-                        </Select>
+                  <Card key={vehicle.vehicle_id} className="overflow-hidden rounded-2xl border border-white/[0.06] bg-[linear-gradient(180deg,rgba(17,23,39,0.97),rgba(10,14,26,0.97))] p-0 shadow-[0_6px_20px_rgba(0,0,0,0.22)]">
+                    {/* Header */}
+                    <div className="flex items-center gap-2 border-b border-white/[0.05] px-4 py-3">
+                      <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-widest text-blue-200/80">{vehicle.marca}</span>
+                      <h3
+                        className="min-w-0 flex-1 cursor-pointer truncate text-sm font-semibold text-foreground transition-colors hover:text-primary"
+                        onClick={() => navigate(`/veiculos/${vehicle.vehicle_id}`)}
+                      >
+                        {vehicle.title || "Sem título"}
+                      </h3>
+                      <span className="shrink-0 text-xs text-muted-foreground">{[vehicle.modelo, vehicle.ano].filter(Boolean).join(" · ")}</span>
+                      <Select value={vehicle.status || "vendido"} onValueChange={(value) => handleStatusChange(vehicle.vehicle_id, value)}>
+                        <SelectTrigger className={`h-7 w-auto shrink-0 rounded-full border px-2.5 text-[11px] ${statusConfig[vehicle.status || "vendido"].className}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-border z-50">
+                          <SelectItem value="disponivel" className="text-green-400">Disponível</SelectItem>
+                          <SelectItem value="negociando" className="text-yellow-400">Negociando</SelectItem>
+                          <SelectItem value="vendido" className="text-red-400">Vendido</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Price strip */}
+                    <div className="grid grid-cols-3 divide-x divide-white/[0.05] border-b border-white/[0.05]">
+                      <div className="px-4 py-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Tabela</p>
+                        <p className="mt-0.5 text-sm font-medium text-foreground">{formatCurrency(vehicle.preco)}</p>
+                      </div>
+                      <div className="px-4 py-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Venda</p>
+                        <p className="mt-0.5 text-sm font-semibold text-emerald-400">{formatCurrency(formData.precoVenda)}</p>
+                      </div>
+                      <div className="px-4 py-3">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Variação</p>
+                        <p className={`mt-0.5 text-sm font-semibold ${temDesconto ? "text-amber-400" : "text-muted-foreground/50"}`}>
+                          {temDesconto ? `-${formatCurrency(desconto)}` : "—"}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="space-y-5 p-6">
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Tabela</p>
-                          <p className="mt-2 text-lg font-medium text-foreground">{formatCurrency(vehicle.preco)}</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Venda</p>
-                          <p className="mt-2 text-lg font-semibold text-emerald-300">{formatCurrency(formData.precoVenda)}</p>
-                        </div>
-                        <div>
-                          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                            <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Variação</p>
-                            <p className={`mt-2 text-lg font-semibold ${temDesconto ? "text-amber-300" : "text-blue-300"}`}>{temDesconto ? `-${formatCurrency(desconto)}` : "Sem desconto"}</p>
-                          </div>
-                        </div>
+                    {/* Form */}
+                    <div className="space-y-2.5 p-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input className="h-9 rounded-xl border-white/[0.08] bg-white/[0.03] text-sm placeholder:text-muted-foreground/60" placeholder="Nome do comprador" value={formData.compradorNome} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "compradorNome", e.target.value)} />
+                        <Input className="h-9 rounded-xl border-white/[0.08] bg-white/[0.03] text-sm placeholder:text-muted-foreground/60" placeholder="Telefone" value={formData.compradorTelefone} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "compradorTelefone", e.target.value)} />
                       </div>
 
-                      <div className="rounded-[24px] border border-white/[0.06] bg-white/[0.025] p-5">
-                        <Label className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Comprador</Label>
-                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <Input className={inputClassName} placeholder="Nome do comprador" value={formData.compradorNome} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "compradorNome", e.target.value)} />
-                          <Input className={inputClassName} placeholder="Telefone" value={formData.compradorTelefone} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "compradorTelefone", e.target.value)} />
-                        </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input className="h-9 rounded-xl border-white/[0.08] bg-white/[0.03] text-sm placeholder:text-muted-foreground/60" type="number" placeholder="Preço de Venda" value={formData.precoVenda ?? ""} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "precoVenda", e.target.value ? Number(e.target.value) : null)} />
+                        <Input className="h-9 rounded-xl border-white/[0.08] bg-white/[0.03] text-sm" type="date" value={formData.dataVenda} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "dataVenda", e.target.value)} />
                       </div>
 
-                      <div className="rounded-[24px] border border-white/[0.06] bg-white/[0.025] p-5">
-                        <Label className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Fechamento</Label>
-                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <div className="space-y-1.5">
-                            <Label className="text-sm text-foreground">Preço de Venda</Label>
-                            <Input className={inputClassName} type="number" placeholder="0" value={formData.precoVenda ?? ""} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "precoVenda", e.target.value ? Number(e.target.value) : null)} />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-sm text-foreground">Data da Venda</Label>
-                            <Input className={inputClassName} type="date" value={formData.dataVenda} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "dataVenda", e.target.value)} />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-[24px] border border-white/[0.06] bg-white/[0.025] p-5">
-                        <Label className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Forma de Pagamento</Label>
-                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                          <Button type="button" variant={formData.formaPagamento === "avista" ? "default" : "outline"} className="h-11 flex-1 rounded-2xl border-white/[0.08] bg-white/[0.03]" onClick={() => { updateLocalEdit(vehicle.vehicle_id, "formaPagamento", "avista"); updateLocalEdit(vehicle.vehicle_id, "valorEntrada", null); updateLocalEdit(vehicle.vehicle_id, "valorFinanciamento", null); }}>
-                            <Banknote className="mr-2 h-4 w-4" />À Vista
-                          </Button>
-                          <Button type="button" variant={formData.formaPagamento === "financiado" ? "default" : "outline"} className="h-11 flex-1 rounded-2xl border-white/[0.08] bg-white/[0.03]" onClick={() => updateLocalEdit(vehicle.vehicle_id, "formaPagamento", "financiado")}>
-                            <CreditCard className="mr-2 h-4 w-4" />Financiado
-                          </Button>
-                        </div>
+                      {/* Payment toggle */}
+                      <div className="flex overflow-hidden rounded-xl border border-white/[0.08]">
+                        <button
+                          type="button"
+                          className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${formData.formaPagamento === "avista" ? "bg-white/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground/70"}`}
+                          onClick={() => { updateLocalEdit(vehicle.vehicle_id, "formaPagamento", "avista"); updateLocalEdit(vehicle.vehicle_id, "valorEntrada", null); updateLocalEdit(vehicle.vehicle_id, "valorFinanciamento", null); }}
+                        >
+                          <Banknote className="h-3.5 w-3.5" /> À Vista
+                        </button>
+                        <div className="w-px bg-white/[0.08]" />
+                        <button
+                          type="button"
+                          className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${formData.formaPagamento === "financiado" ? "bg-white/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground/70"}`}
+                          onClick={() => updateLocalEdit(vehicle.vehicle_id, "formaPagamento", "financiado")}
+                        >
+                          <CreditCard className="h-3.5 w-3.5" /> Financiado
+                        </button>
                       </div>
 
                       {isFinanciado && (
-                        <div className="grid gap-3 rounded-[24px] border border-white/[0.06] bg-white/[0.025] p-5 sm:grid-cols-2">
-                          <div className="space-y-1.5">
-                            <Label className="text-sm text-foreground">Valor da Entrada</Label>
-                            <Input className={inputClassName} type="number" placeholder="0" value={formData.valorEntrada ?? ""} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "valorEntrada", e.target.value ? Number(e.target.value) : null)} />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-sm text-foreground">Valor Financiado</Label>
-                            <Input className={inputClassName} type="number" placeholder="0" value={formData.valorFinanciamento ?? ""} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "valorFinanciamento", e.target.value ? Number(e.target.value) : null)} />
-                          </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input className="h-9 rounded-xl border-white/[0.08] bg-white/[0.03] text-sm placeholder:text-muted-foreground/60" type="number" placeholder="Valor entrada" value={formData.valorEntrada ?? ""} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "valorEntrada", e.target.value ? Number(e.target.value) : null)} />
+                          <Input className="h-9 rounded-xl border-white/[0.08] bg-white/[0.03] text-sm placeholder:text-muted-foreground/60" type="number" placeholder="Valor financiado" value={formData.valorFinanciamento ?? ""} onChange={(e) => updateLocalEdit(vehicle.vehicle_id, "valorFinanciamento", e.target.value ? Number(e.target.value) : null)} />
                         </div>
                       )}
 
                       {isFinanciado && (formData.valorEntrada || formData.valorFinanciamento) && (
-                        <div className="rounded-2xl border border-blue-500/20 bg-blue-500/8 p-4">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Entrada:</span>
-                            <span className="font-medium text-foreground">{formatCurrency(formData.valorEntrada)}</span>
-                          </div>
-                          <div className="flex justify-between text-sm mt-1">
-                            <span className="text-muted-foreground">Financiado:</span>
-                            <span className="font-medium text-foreground">{formatCurrency(formData.valorFinanciamento)}</span>
-                          </div>
-                          <div className="mt-2 flex justify-between border-t border-blue-500/20 pt-2 text-sm">
-                            <span className="text-muted-foreground">Total:</span>
-                            <span className="font-semibold text-primary">{formatCurrency((formData.valorEntrada || 0) + (formData.valorFinanciamento || 0))}</span>
-                          </div>
+                        <div className="flex items-center justify-between rounded-xl border border-blue-500/20 bg-blue-500/[0.06] px-3 py-2 text-xs">
+                          <span className="text-muted-foreground">Entrada {formatCurrency(formData.valorEntrada)} · Financiado {formatCurrency(formData.valorFinanciamento)}</span>
+                          <span className="font-semibold text-primary">{formatCurrency((formData.valorEntrada || 0) + (formData.valorFinanciamento || 0))}</span>
                         </div>
                       )}
 
                       {temDesconto && (
-                        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/8 p-4">
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="font-medium text-amber-300">Desconto aplicado</span>
-                            <span className="font-semibold text-amber-300">{formatCurrency(desconto)}</span>
-                          </div>
+                        <div className="flex items-center justify-between px-1 text-xs">
+                          <span className="text-amber-400/70">Desconto aplicado</span>
+                          <span className="font-semibold text-amber-400">{formatCurrency(desconto)}</span>
                         </div>
                       )}
 
-                      <Button className="h-11 w-full rounded-2xl bg-[linear-gradient(135deg,#22c55e,#38bdf8)] text-slate-950 hover:shadow-[0_16px_40px_rgba(34,197,94,0.25)] border-0" onClick={() => handleSave(vehicle.vehicle_id)} disabled={saveSaleMutation.isPending}>
-                        {saveSaleMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      <Button className="h-9 w-full rounded-xl bg-[linear-gradient(135deg,#22c55e,#38bdf8)] text-sm text-slate-950 hover:shadow-[0_8px_24px_rgba(34,197,94,0.2)] border-0" onClick={() => handleSave(vehicle.vehicle_id)} disabled={saveSaleMutation.isPending}>
+                        {saveSaleMutation.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
                         Salvar Informações
                       </Button>
                     </div>

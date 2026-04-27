@@ -11,12 +11,22 @@ import { useUsers } from "@/hooks/useUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, Loader2, Mail, Phone, Plus, ShieldCheck, ShieldX, UserCircle, UserCog, Users } from "lucide-react";
-import { AppRole, UserWithRole } from "@/types/auth";
+import { AppRole, PlanType, UserWithRole } from "@/types/auth";
 
 const roleLabels: Record<AppRole, string> = {
   admin: "Admin",
   gerente: "Gerente",
   vendedor: "Vendedor",
+};
+
+const planLabels: Record<PlanType, string> = {
+  pro: "Plano Pro",
+  essencial: "Plano Essencial",
+};
+
+const planBadgeClassName: Record<PlanType, string> = {
+  pro: "border-sky-400/20 bg-sky-400/10 text-sky-100",
+  essencial: "border-emerald-400/20 bg-emerald-400/10 text-emerald-100",
 };
 
 type UserManagementSectionProps = {
@@ -251,6 +261,15 @@ export function UserManagementSection({ showHeader = true }: UserManagementSecti
                     </div>
                     <Badge variant={userRecord.is_active ? "available" : "sold"}>
                       {userRecord.is_active ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Badge
+                      variant="outline"
+                      className={planBadgeClassName[userRecord.plan_type] ?? "border-white/[0.08] bg-white/[0.04]"}
+                    >
+                      {planLabels[userRecord.plan_type] ?? "Plano não definido"}
                     </Badge>
                   </div>
 

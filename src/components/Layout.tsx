@@ -5,12 +5,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SearchCommandBar } from "@/components/SearchCommandBar";
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
 import { preloadRoutes } from "@/lib/routePreload";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const { profile } = useAuth();
-  const location = useLocation();
 
   const initials = profile?.full_name
     ? profile.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
@@ -65,7 +63,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             </div>
           </header>
           <main className="flex-1 min-h-0 p-6 overflow-hidden bg-radial-glow relative">
-            <div key={`${location.pathname}${location.search}`} className="crm-route-enter relative z-10 h-full min-h-0 overflow-auto">
+            <div className="crm-route-enter relative z-10 h-full min-h-0 overflow-auto">
               {children}
             </div>
           </main>

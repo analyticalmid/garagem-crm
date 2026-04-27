@@ -116,7 +116,34 @@ function getWhatsappLink(telefone: string, mensagem: string) {
   return `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
 }
 
-function PosVendaCardItem({ card, index }: { card: PosVendaCard; index: number }) {
+function formatHealthDate(value: string | null) {
+  if (!value) return null;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
+function PosVendaCardItem({
+  card,
+  index,
+  isSending,
+  onSendMessage,
+}: {
+  card: PosVendaCard;
+  index: number;
+  isSending: boolean;
+  onSendMessage: (card: PosVendaCard) => Promise<void>;
+}) {
+  const lastHealthDate = formatHealthDate(card.lastHealthInteractionAt);
+
   return (
     <Draggable draggableId={card.id} index={index}>
       {(provided, snapshot) => (
@@ -153,8 +180,40 @@ function PosVendaCardItem({ card, index }: { card: PosVendaCard; index: number }
             </div>
 
             <div className="space-y-3 pl-14">
+              {card.smartBadge ? (
+                <div
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]",
+                    card.smartBadge.kind === "upgrade_365"
+                      ? "border-amber-400/20 bg-amber-500/10 text-amber-200"
+                      : "border-blue-400/20 bg-blue-500/10 text-blue-200",
+                  )}
+                >
+                  {card.smartBadge.pulse ? (
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-300/75" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-300" />
+                    </span>
+                  ) : (
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-300" />
+                  )}
+                  {card.smartBadge.label}
+                </div>
+              ) : null}
+
               <div className="flex flex-wrap items-center gap-2">
-                <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]", toneToBadgeClass(card.statusTone))}>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em]",
+                    toneToBadgeClass(card.statusTone),
+                  )}
+                >
+                  {card.smartBadge?.pulse ? (
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-300/70" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-300" />
+                    </span>
+                  ) : null}
                   {card.statusResumo}
                 </span>
                 <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-300">
@@ -173,15 +232,28 @@ function PosVendaCardItem({ card, index }: { card: PosVendaCard; index: number }
               </div>
 
               <Button
-                asChild
                 variant="ghost"
-                className="h-11 w-full justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03] text-slate-100 hover:border-[#25D366]/30 hover:bg-[#25D366]/10 hover:text-white"
+                onClick={() => void onSendMessage(card)}
+                disabled={isSending}
+                className="h-11 w-full justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03] text-slate-100 hover:border-[#25D366]/30 hover:bg-[#25D366]/10 hover:text-white disabled:opacity-70"
               >
-                <a href={getWhatsappLink(card.telefone, card.mensagemZap)} target="_blank" rel="noopener noreferrer">
-                  <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
-                  Enviar Mensagem
-                </a>
+                {isSending ? <Loader2 className="h-4 w-4 animate-spin text-[#25D366]" /> : <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />}
+                {isSending ? "Enviando..." : "Enviar Mensagem"}
               </Button>
+
+              <div className="flex items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[11px] text-muted-foreground">
+                <span>Histórico de saúde: {card.historicoSaudeCount}</span>
+                <span>{lastHealthDate ? `Último contato em ${lastHealthDate}` : "Sem contatos registrados"}</span>
+              </div>
+
+              <a
+                href={getWhatsappLink(card.telefone, card.mensagemZap)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-xl text-xs text-blue-200/80 transition hover:text-blue-100"
+              >
+                Abrir prévia no WhatsApp
+              </a>
             </div>
           </div>
         </article>
@@ -197,6 +269,8 @@ function PosVendaColumn({
   description,
   dotClassName,
   cards,
+  sendingCardId,
+  onSendMessage,
 }: {
   id: PosVendaColumnId;
   title: string;
@@ -204,6 +278,8 @@ function PosVendaColumn({
   description: string;
   dotClassName: string;
   cards: PosVendaCard[];
+  sendingCardId: string | null;
+  onSendMessage: (card: PosVendaCard) => Promise<void>;
 }) {
   return (
     <div className="flex h-full min-h-[700px] w-[356px] min-w-[356px] shrink-0 flex-col overflow-hidden rounded-[24px] border border-white/[0.05] bg-[linear-gradient(180deg,rgba(20,26,38,0.98),rgba(10,14,23,0.98))]">
@@ -235,7 +311,13 @@ function PosVendaColumn({
             )}
           >
             {cards.map((card, index) => (
-              <PosVendaCardItem key={card.id} card={card} index={index} />
+              <PosVendaCardItem
+                key={card.id}
+                card={card}
+                index={index}
+                isSending={sendingCardId === card.id}
+                onSendMessage={onSendMessage}
+              />
             ))}
             {provided.placeholder}
 
@@ -252,7 +334,18 @@ function PosVendaColumn({
 }
 
 export default function PosVenda() {
-  const { cards, automaticCardsCount, soldLeadsCount, isLoading, createCard, moveCard, isSaving } = usePosVendaKanban();
+  const {
+    cards,
+    automaticCardsCount,
+    smartCardsCount,
+    soldLeadsCount,
+    isLoading,
+    createCard,
+    moveCard,
+    sendMessage,
+    sendingCardId,
+    isSaving,
+  } = usePosVendaKanban();
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -373,9 +466,9 @@ export default function PosVenda() {
                 Sincronizando cards do pós-venda...
               </span>
             ) : (
-              <span>
+                <span>
                 {automaticCardsCount > 0
-                  ? `${automaticCardsCount} card(s) automáticos sincronizados de ${soldLeadsCount} venda(s).`
+                  ? `${automaticCardsCount} card(s) automáticos sincronizados, com ${smartCardsCount} oportunidade(s) inteligentes ativas.`
                   : soldLeadsCount > 0
                     ? `Há ${soldLeadsCount} venda(s) elegíveis aguardando sincronização.`
                     : "Nenhuma venda marcada como vendida para iniciar o fluxo."}
@@ -411,7 +504,7 @@ export default function PosVenda() {
           <div>
             <h2 className="text-xl font-semibold tracking-tight text-foreground">Pipeline de Pós-Venda e Retenção</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Todas as etapas do kanban são persistidas na tabela de pós-venda do Supabase.
+              Todas as etapas do kanban são persistidas no Supabase, incluindo histórico de saúde e oportunidades de retenção.
             </p>
           </div>
 
@@ -509,6 +602,8 @@ export default function PosVenda() {
                     description={column.description}
                     dotClassName={column.dotClassName}
                     cards={cardsByColumn[column.id]}
+                    sendingCardId={sendingCardId}
+                    onSendMessage={sendMessage}
                   />
                 ))}
               </div>

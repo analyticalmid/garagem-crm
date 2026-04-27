@@ -150,8 +150,21 @@ export default function Tarefas() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[50vh]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
+        <div className="flex shrink-0 items-center justify-between">
+          <div className="h-7 w-40 rounded-lg bg-white/[0.06] animate-pulse" />
+          <div className="h-10 w-32 rounded-xl bg-white/[0.06] animate-pulse" />
+        </div>
+        <div className="flex flex-1 gap-4 overflow-hidden">
+          {TASK_COLUMNS.map((col) => (
+            <div key={col.id} className="flex w-72 shrink-0 flex-col gap-3">
+              <div className="h-8 w-full rounded-lg bg-white/[0.06] animate-pulse" />
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 w-full rounded-xl bg-white/[0.04] animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

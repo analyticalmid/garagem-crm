@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { UserManagementSection } from "@/components/UserManagementSection";
+import { TeamManagementSection } from "@/components/TeamManagementSection";
 import { BellRing, Camera, FileDown, Loader2, LockKeyhole, Save, Settings2, ShieldCheck, SlidersHorizontal, UserCircle2 } from "lucide-react";
 import { apiFetch, dataUrl } from "@/lib/api";
 
@@ -75,7 +76,7 @@ const notificationChannelItems: Array<{
 ];
 
 export default function Configuracoes() {
-  const { profile, role, isAdmin, refreshProfile } = useAuth();
+  const { profile, role, isAdmin, isEssencial, refreshProfile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -309,6 +310,8 @@ export default function Configuracoes() {
         </TabsList>
 
         <TabsContent value="geral" className="mt-0 space-y-6">
+          {isEssencial && <TeamManagementSection />}
+
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
             <section className="rounded-[28px] border border-white/[0.06] p-6 shadow-[0_18px_44px_rgba(0,0,0,0.26)] glass">
               <div className="mb-6 flex items-start justify-between gap-4">
