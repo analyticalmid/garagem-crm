@@ -2,50 +2,34 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // ---------------------------------------------------------------------------
-// Types — Z-API webhook payload
+// Types — Z-API envia payload FLAT (campos na raiz, não dentro de "message")
 // ---------------------------------------------------------------------------
 
-interface ZApiTextMessage {
-  message: string;
-}
+interface ZApiTextContent   { message: string }
+interface ZApiImageContent  { caption?: string; imageUrl?: string }
+interface ZApiAudioContent  { audioUrl?: string }
+interface ZApiDocumentContent { caption?: string; documentUrl?: string; fileName?: string }
 
-interface ZApiImageMessage {
-  caption?: string;
-  imageUrl?: string;
-  mimeType?: string;
-}
-
-interface ZApiAudioMessage {
-  audioUrl?: string;
-  mimeType?: string;
-}
-
-interface ZApiDocumentMessage {
-  caption?: string;
-  documentUrl?: string;
-  mimeType?: string;
-  fileName?: string;
-}
-
-interface ZApiMessage {
-  messageId?: string;
-  phone: string;
-  fromMe: boolean;
-  senderName?: string;
-  isGroup?: boolean;
-  type: string;
-  text?: ZApiTextMessage;
-  image?: ZApiImageMessage;
-  audio?: ZApiAudioMessage;
-  document?: ZApiDocumentMessage;
-}
-
-interface ZApiWebhookPayload {
+interface ZApiPayload {
+  // identificação da instância
   instanceId?: string;
+  // tipo do evento
   type?: string;
+  // dados do contato/mensagem — todos na raiz
   phone?: string;
-  message?: ZApiMessage;
-  zapiMessageId?: string;
+  fromMe?: boolean;
+  isGroup?: boolean;
+  senderName?: string;
+  chatName?: string;
+  messageId?: string;
+  momment?: number;
+  // conteúdo (apenas um desses vem preenchido por mensagem)
+  text?: ZApiTextContent;
+  image?: ZApiImageContent;
+  audio?: ZApiAudioContent;
+  document?: ZApiDocumentContent;
+  // fallback: alguns eventos ainda encapsulam em "message"
+  message?: Partial<ZApiPayload>;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,12 +40,21 @@ function normalizePhone(raw: string): string {
   return raw.replace(/\D/g, "");
 }
 
-function extractContent(msg: ZApiMessage) {
-  if (msg.text)     return { texto: msg.text.message ?? null,              tipoMidia: null,       urlMidia: null };
-  if (msg.image)    return { texto: msg.image.caption ?? null,             tipoMidia: "image",    urlMidia: msg.image.imageUrl ?? null };
-  if (msg.audio)    return { texto: null,                                  tipoMidia: "audio",    urlMidia: msg.audio.audioUrl ?? null };
-  if (msg.document) return { texto: msg.document.caption ?? msg.document.fileName ?? null, tipoMidia: "document", urlMidia: msg.document.documentUrl ?? null };
-  return { texto: null, tipoMidia: msg.type ?? null, urlMidia: null };
+// Normaliza payload: suporta tanto formato flat quanto aninhado em "message"
+function normalize(raw: ZApiPayload): ZApiPayload {
+  if (raw.message && typeof raw.message === "object" && raw.message.phone) {
+    // formato aninhado — eleva os campos para a raiz
+    return { ...raw, ...raw.message };
+  }
+  return raw;
+}
+
+function extractContent(p: ZApiPayload) {
+  if (p.text)     return { texto: p.text.message ?? null,                              tipoMidia: null,       urlMidia: null };
+  if (p.image)    return { texto: p.image.caption ?? null,                             tipoMidia: "image",    urlMidia: p.image.imageUrl ?? null };
+  if (p.audio)    return { texto: null,                                                tipoMidia: "audio",    urlMidia: p.audio.audioUrl ?? null };
+  if (p.document) return { texto: p.document.caption ?? p.document.fileName ?? null,  tipoMidia: "document", urlMidia: p.document.documentUrl ?? null };
+  return { texto: null, tipoMidia: p.type ?? null, urlMidia: null };
 }
 
 function log(level: "info" | "warn" | "error", msg: string, data?: unknown) {
@@ -77,23 +70,23 @@ function log(level: "info" | "warn" | "error", msg: string, data?: unknown) {
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
+      status: 405, headers: { "Content-Type": "application/json" },
     });
   }
 
-  let payload: ZApiWebhookPayload;
+  let raw: ZApiPayload;
   try {
-    payload = await req.json();
+    raw = await req.json();
   } catch {
     log("warn", "invalid_json");
     return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
+      status: 400, headers: { "Content-Type": "application/json" },
     });
   }
 
-  log("info", "webhook_received", { type: payload.type, instanceId: payload.instanceId });
+  const payload = normalize(raw);
+
+  log("info", "webhook_received", { type: payload.type, instanceId: payload.instanceId, phone: payload.phone });
 
   // Aceita apenas mensagens recebidas
   const isReceivedMessage =
@@ -102,33 +95,29 @@ Deno.serve(async (req: Request) => {
 
   if (!isReceivedMessage) {
     return new Response(JSON.stringify({ ok: true, skipped: "not_message_event" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
+      status: 200, headers: { "Content-Type": "application/json" },
     });
   }
 
-  const msg = payload.message;
-  if (!msg) {
-    return new Response(JSON.stringify({ error: "No message object" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
+  if (payload.fromMe) {
+    return new Response(JSON.stringify({ ok: true, skipped: "fromMe" }), {
+      status: 200, headers: { "Content-Type": "application/json" },
     });
   }
 
-  if (msg.fromMe || msg.isGroup) {
-    return new Response(JSON.stringify({ ok: true, skipped: msg.fromMe ? "fromMe" : "group" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
+  if (payload.isGroup) {
+    return new Response(JSON.stringify({ ok: true, skipped: "group" }), {
+      status: 200, headers: { "Content-Type": "application/json" },
     });
   }
 
   const instanceId = payload.instanceId ?? "";
-  const telefone   = normalizePhone(msg.phone ?? payload.phone ?? "");
+  const telefone   = normalizePhone(payload.phone ?? "");
 
   if (!telefone) {
+    log("warn", "missing_phone", { raw_phone: payload.phone });
     return new Response(JSON.stringify({ error: "Missing phone" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
+      status: 400, headers: { "Content-Type": "application/json" },
     });
   }
 
@@ -149,28 +138,26 @@ Deno.serve(async (req: Request) => {
     .maybeSingle();
 
   if (zapiErr) {
-    log("error", "zapi_webhook_lookup_failed", { instanceId, error: zapiErr.message });
+    log("error", "zapi_lookup_failed", { instanceId, error: zapiErr.message });
     return new Response(JSON.stringify({ error: "zapi_webhooks lookup failed" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
+      status: 500, headers: { "Content-Type": "application/json" },
     });
   }
 
   if (!zapiWebhook) {
     log("warn", "unknown_instance", { instanceId });
     return new Response(JSON.stringify({ ok: true, skipped: "unknown_instance" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
+      status: 200, headers: { "Content-Type": "application/json" },
     });
   }
 
   const { id: zapiWebhookId, tenant_id: tenantId } = zapiWebhook;
-  const nomeContato = msg.senderName ?? telefone;
-  const zapiMsgId   = msg.messageId ?? payload.zapiMessageId ?? null;
-  const { texto, tipoMidia, urlMidia } = extractContent(msg);
+  const nomeContato = payload.senderName ?? payload.chatName ?? telefone;
+  const zapiMsgId   = payload.messageId ?? null;
+  const { texto, tipoMidia, urlMidia } = extractContent(payload);
   const agora = new Date().toISOString();
 
-  log("info", "processing_message", { telefone, zapiWebhookId, tenantId });
+  log("info", "processing_message", { telefone, zapiWebhookId, tenantId, tipo: tipoMidia ?? "text" });
 
   // -------------------------------------------------------------------------
   // 2. Upsert contato em Contatos_Whatsapp
@@ -189,7 +176,6 @@ Deno.serve(async (req: Request) => {
   if (contatoUpsert?.id) {
     contatoId = contatoUpsert.id;
   } else {
-    // fallback: busca direta
     const { data: existing } = await supabase
       .from("Contatos_Whatsapp")
       .select("id")
@@ -222,32 +208,28 @@ Deno.serve(async (req: Request) => {
   if (conversaErr) {
     log("error", "conversa_upsert_failed", { telefone, error: conversaErr.message });
     return new Response(JSON.stringify({ error: "Conversation upsert failed" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
+      status: 500, headers: { "Content-Type": "application/json" },
     });
-  }
-
-  // Se a conversa já existia (upsert retorna o row existente), incrementa nao_lidas
-  if (conversaUpsert) {
-    await supabase
-      .from("conversations")
-      .update({
-        nao_lidas: (conversaUpsert.nao_lidas ?? 0) + 1,
-        ultima_mensagem_at: agora,
-        status: "aberta",
-        lead_id: contatoId,
-      })
-      .eq("id", conversaUpsert.id);
   }
 
   const conversaId = conversaUpsert?.id;
   if (!conversaId) {
     log("error", "conversa_id_missing", { telefone });
     return new Response(JSON.stringify({ error: "Could not resolve conversation id" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
+      status: 500, headers: { "Content-Type": "application/json" },
     });
   }
+
+  // Incrementa nao_lidas na conversa existente
+  await supabase
+    .from("conversations")
+    .update({
+      nao_lidas: (conversaUpsert.nao_lidas ?? 0) + 1,
+      ultima_mensagem_at: agora,
+      status: "aberta",
+      lead_id: contatoId,
+    })
+    .eq("id", conversaId);
 
   // -------------------------------------------------------------------------
   // 4. Inserir mensagem — idempotente via UNIQUE(zapi_msg_id)
@@ -273,7 +255,6 @@ Deno.serve(async (req: Request) => {
 
   if (msgErr) {
     log("error", "message_insert_failed", { zapiMsgId, error: msgErr.message });
-    // Não aborta — mensagem duplicada não é crítico
   }
 
   // -------------------------------------------------------------------------
@@ -287,18 +268,12 @@ Deno.serve(async (req: Request) => {
     .maybeSingle();
 
   const statusAtual = leadAtual?.status ?? null;
-  // Reengaja lead perdido; mantém negociando/vendido intactos
   const novoStatus = !statusAtual || statusAtual === "perdido" ? "novo_lead" : statusAtual;
 
   const { error: leadErr } = await supabase
     .from("lead_status")
     .upsert(
-      {
-        telefone,
-        status: novoStatus,
-        tenant_id: tenantId,
-        ultimo_contato_em: agora,
-      },
+      { telefone, status: novoStatus, tenant_id: tenantId, ultimo_contato_em: agora },
       { onConflict: "telefone", ignoreDuplicates: false },
     );
 
