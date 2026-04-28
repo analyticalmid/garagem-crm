@@ -137,11 +137,6 @@ const Leads = () => {
     if (newStatus === "vendido" && source.droppableId !== "vendido") {
       setCelebrationLeadName(lead.nome || null);
       setSaleCelebrationOpen(true);
-      toast.success(profile?.full_name ? `Parabéns, ${profile.full_name}!` : "Parabéns pela venda!", {
-        description: lead.nome
-          ? `${lead.nome} foi movido para Vendido.`
-          : "O lead foi movido para Vendido.",
-      });
       return;
     }
 

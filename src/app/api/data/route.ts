@@ -17,6 +17,10 @@ export const runtime = "nodejs";
 
 const PAGE_SIZE = 1000;
 
+function getWhatsappDataClient(supabase: SupabaseRouteClient) {
+  return createSupabaseServiceClient() ?? supabase;
+}
+
 // Cache sessão para evitar 2 round-trips ao Supabase por request
 type CachedSession = {
   userId: string;
@@ -762,18 +766,24 @@ export async function GET(request: Request) {
         return NextResponse.json(created);
       }
       case "whatsapp-conversations": {
+        const whatsappClient = getWhatsappDataClient(supabase);
         const [
           { data: rawMessages, error: messagesError },
+          { data: conversationRows, error: conversationsError },
           { data: statusRecords, error: statusError },
           { data: profiles, error: profilesError },
           { data: contatos, error: contatosError },
         ] = await Promise.all([
-          supabase.from("mensagens_whatsapp").select("*"),
+          whatsappClient.from("mensagens_whatsapp").select("*"),
+          supabase
+            .from("conversations")
+            .select("id, telefone, lead_id, nao_lidas, responsavel_id, status, ultima_mensagem_at"),
           supabase.from("lead_status").select("telefone, status, veiculo_interesse, observacao, assigned_to"),
           supabase.from("profiles").select("id, full_name"),
           supabase.from("Contatos_Whatsapp").select("*"),
         ]);
         if (messagesError) throw messagesError;
+        if (conversationsError) throw conversationsError;
         if (statusError) throw statusError;
         if (profilesError) throw profilesError;
         if (contatosError) throw contatosError;
@@ -784,6 +794,17 @@ export async function GET(request: Request) {
         const profilesMap = new Map((profiles || []).map((profile) => [profile.id, profile.full_name]));
         const contatosMap = new Map(
           (contatos || []).map((contato) => [normalizeLeadPhone(contato.Telefone_Whatsapp), contato]),
+        );
+        const conversationMap = new Map(
+          (conversationRows || [])
+            .map((conversation) => {
+              const normalizedPhone = normalizeLeadPhone(conversation.telefone);
+              if (!normalizedPhone) return null;
+              return [normalizedPhone, conversation] as const;
+            })
+            .filter(
+              (entry): entry is readonly [string, NonNullable<typeof conversationRows>[number]] => Boolean(entry),
+            ),
         );
         const grouped = new Map<string, WhatsappMessageRow[]>();
         console.log(`[whatsapp-conversations] mensagens_whatsapp rows=${rawMessages?.length || 0}`);
@@ -797,44 +818,65 @@ export async function GET(request: Request) {
           grouped.set(normalizedPhone, current);
         }
 
-        const result = Array.from(grouped.entries())
-          .map(([normalizedPhone, phoneMessages]) => {
+        const phones = new Set<string>([...grouped.keys(), ...conversationMap.keys()]);
+
+        const result = Array.from(phones)
+          .map((normalizedPhone) => {
+            const phoneMessages = grouped.get(normalizedPhone) || [];
             const orderedMessages = sortWhatsappMessages(phoneMessages);
             const latestMessage = orderedMessages.at(-1) || null;
             const statusRec = statusMap.get(normalizedPhone);
             const contato = contatosMap.get(normalizedPhone);
+            const conversation = conversationMap.get(normalizedPhone);
 
             return {
-              id: normalizedPhone,
-              telefone: coercePhone(phoneMessages.find((message) => message.telefone_id)?.telefone_id) || normalizedPhone,
-              lead_id: contato?.id || null,
+              id: conversation?.id || normalizedPhone,
+              telefone:
+                coercePhone(phoneMessages.find((message) => message.telefone_id)?.telefone_id) ||
+                conversation?.telefone ||
+                contato?.Telefone_Whatsapp ||
+                normalizedPhone,
+              lead_id: conversation?.lead_id || contato?.id || null,
               lead_nome:
                 phoneMessages.find((message) => message.nome_lead && message.nome_lead.trim())?.nome_lead ||
                 contato?.nome ||
                 normalizedPhone,
-              nao_lidas: 0,
-              status: "aberta",
-              ultima_mensagem_at: latestMessage?.created_at || null,
+              nao_lidas: conversation?.nao_lidas || 0,
+              status: conversation?.status || "aberta",
+              ultima_mensagem_at: latestMessage?.created_at || conversation?.ultima_mensagem_at || null,
               ultima_mensagem_preview: latestMessage?.mensagem || null,
               lead_kanban_status: statusRec?.status || "novo_lead",
               veiculo_interesse: statusRec?.veiculo_interesse || null,
               observacao: contato?.["observação"] || null,
-              responsavel_id: statusRec?.assigned_to || null,
-              assigned_user_name: statusRec?.assigned_to ? profilesMap.get(statusRec.assigned_to) || null : null,
+              responsavel_id: statusRec?.assigned_to || conversation?.responsavel_id || null,
+              assigned_user_name:
+                (statusRec?.assigned_to ? profilesMap.get(statusRec.assigned_to) : null) ||
+                (conversation?.responsavel_id ? profilesMap.get(conversation.responsavel_id) || null : null),
             };
           })
           .sort((a, b) => getMessageTimestamp({ created_at: b.ultima_mensagem_at }) - getMessageTimestamp({ created_at: a.ultima_mensagem_at }));
 
         if (!canViewAllLeads) {
-          return NextResponse.json(result.filter((conversation) => conversation.responsavel_id === user.id || !conversation.responsavel_id));
+          const scopedResult = result.filter(
+            (conversation) => conversation.responsavel_id === user.id || !conversation.responsavel_id,
+          );
+
+          // Fallback para bases legadas: se existem conversas, mas o filtro por responsável
+          // esconder tudo, mantemos a inbox visível em vez de deixá-la vazia.
+          if (scopedResult.length === 0 && result.length > 0) {
+            return NextResponse.json(result);
+          }
+
+          return NextResponse.json(scopedResult);
         }
         return NextResponse.json(result);
       }
       case "whatsapp-messages": {
+        const whatsappClient = getWhatsappDataClient(supabase);
         const telefone = url.searchParams.get("telefone") || "";
         if (!telefone) return jsonError("telefone obrigatório", 400);
 
-        const { data, error } = await supabase
+        const { data, error } = await whatsappClient
           .from("mensagens_whatsapp")
           .select("*")
           .eq("telefone_id", telefone)
@@ -1037,7 +1079,8 @@ export async function POST(request: Request) {
           .eq("id", body.cardId);
         if (updateCardError) throw updateCardError;
 
-        const { error: mockSendError } = await supabase.from("mensagens_whatsapp").insert({
+        const whatsappClient = getWhatsappDataClient(supabase);
+        const { error: mockSendError } = await whatsappClient.from("mensagens_whatsapp").insert({
           telefone_id: body.telefone,
           nome_lead: body.nomeLead || null,
           enviado_pelo_vendedor: true,
@@ -1054,6 +1097,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true });
       }
       case "whatsapp-send-message": {
+        const whatsappClient = getWhatsappDataClient(supabase);
         const body = await parseJson<{ telefone: string; conteudo: string; nomeLead?: string | null }>(request);
         const payload = {
           telefone_id: body.telefone,
@@ -1061,7 +1105,7 @@ export async function POST(request: Request) {
           enviado_pelo_vendedor: true,
           mensagem: body.conteudo,
         };
-        const { error } = await supabase.from("mensagens_whatsapp").insert(payload);
+        const { error } = await whatsappClient.from("mensagens_whatsapp").insert(payload);
         if (error) throw error;
         return NextResponse.json({ ok: true });
       }
@@ -1205,6 +1249,7 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ ok: true });
       }
       case "lead": {
+        const whatsappClient = getWhatsappDataClient(supabase);
         const body = await parseJson<{
           id?: number;
           telefone?: string;
@@ -1213,7 +1258,7 @@ export async function PATCH(request: Request) {
         }>(request);
 
         if ("nome" in body && body.telefone) {
-          const { error } = await supabase
+          const { error } = await whatsappClient
             .from("mensagens_whatsapp")
             .update({ nome_lead: body.nome ?? null })
             .eq("telefone_id", body.telefone);

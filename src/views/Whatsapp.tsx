@@ -47,7 +47,7 @@ export default function Whatsapp() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const { data: conversations = [], isLoading: isLoadingConvs } = useQuery<WhatsappConversation[]>({
+  const { data: conversations = [], isLoading: isLoadingConvs, error: conversationsError } = useQuery<WhatsappConversation[]>({
     queryKey: ["whatsapp-conversations"],
     queryFn: () => apiFetch(dataUrl("whatsapp-conversations")),
     refetchInterval: 12_000,
@@ -172,7 +172,13 @@ export default function Whatsapp() {
         <div>
           <h1 className="text-xl font-bold leading-tight text-foreground tracking-tight">WhatsApp</h1>
           <p className="text-xs text-muted-foreground">
-            {conversations.length > 0 ? `${conversations.length} conversa${conversations.length !== 1 ? "s" : ""}` : "Carregando..."}
+            {conversationsError
+              ? "Não foi possível carregar as conversas"
+              : isLoadingConvs
+                ? "Carregando..."
+                : conversations.length > 0
+                  ? `${conversations.length} conversa${conversations.length !== 1 ? "s" : ""}`
+                  : "Nenhuma conversa encontrada"}
           </p>
         </div>
       </div>
