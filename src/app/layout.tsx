@@ -4,6 +4,14 @@ import "@/index.css";
 export const metadata: Metadata = {
   title: "Garagem CRM",
   description: "CRM operacional da Garagem.",
+  icons: {
+    icon: [
+      { url: "/logo-garagem.png", type: "image/png" },
+      { url: "/logo-garagem.svg", type: "image/svg+xml" },
+    ],
+    apple: "/logo-garagem.png",
+    shortcut: "/logo-garagem.png",
+  },
 };
 
 export default function RootLayout({
