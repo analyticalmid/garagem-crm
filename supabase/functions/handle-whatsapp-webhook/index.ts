@@ -159,23 +159,23 @@ Deno.serve(async (req: Request) => {
   // -------------------------------------------------------------------------
   // 1. Identificar a loja pelo instanceId
   // -------------------------------------------------------------------------
-  const { data: loja, error: lojaErr } = await supabase
-    .from("lojas")
+  const { data: zapiWebhook, error: zapiErr } = await supabase
+    .from("zapi_webhooks")
     .select("id, tenant_id, nome_loja")
     .eq("zapi_instance_id", instanceId)
     .eq("ativo", true)
     .maybeSingle();
 
-  if (lojaErr) {
-    log("error", "loja_lookup_failed", { instanceId, error: lojaErr.message });
-    return new Response(JSON.stringify({ error: "Loja lookup failed" }), {
+  if (zapiErr) {
+    log("error", "zapi_webhook_lookup_failed", { instanceId, error: zapiErr.message });
+    return new Response(JSON.stringify({ error: "zapi_webhooks lookup failed" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  if (!loja) {
-    log("warn", "loja_not_found", { instanceId });
+  if (!zapiWebhook) {
+    log("warn", "zapi_webhook_not_found", { instanceId });
     // Retorna 200 para a Z-API não ficar re-tentando com instâncias desconhecidas
     return new Response(JSON.stringify({ ok: true, skipped: "unknown_instance" }), {
       status: 200,
@@ -183,7 +183,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { id: lojaId, tenant_id: tenantId } = loja;
+  const { id: zapiWebhookId, tenant_id: tenantId } = zapiWebhook;
   const nomeContato = msg.senderName ?? telefone;
   const zapiMsgId = msg.messageId ?? payload.zapiMessageId ?? null;
   const { texto, tipoMidia, urlMidia } = extractContent(msg);
@@ -228,7 +228,7 @@ Deno.serve(async (req: Request) => {
     .upsert(
       {
         telefone,
-        loja_id: lojaId,
+        zapi_webhook_id: zapiWebhookId,
         tenant_id: tenantId,
         lead_id: contatoId,
         status: "aberta",
