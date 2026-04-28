@@ -2,6 +2,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { BadgeCheck, MailCheck } from "lucide-react";
 import { billingPlans, isBillingPlan } from "@/lib/billingPlans";
 
+const publicSiteUrl = "https://garagemcrm.com.br";
+
 export default function CheckoutSuccess() {
   const [searchParams] = useSearchParams();
   const planParam = searchParams.get("plan");
@@ -39,12 +41,15 @@ export default function CheckoutSuccess() {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link to="/" className="rounded-full bg-[linear-gradient(135deg,#2563eb,#3b82f6)] px-5 py-3 text-sm font-semibold text-white">
+          <Link to="/entrar" className="rounded-full bg-[linear-gradient(135deg,#2563eb,#3b82f6)] px-5 py-3 text-sm font-semibold text-white">
             Ir para o login
           </Link>
-          <Link to="/" className="rounded-full border border-white/10 px-5 py-3 text-sm text-slate-200">
+          <a
+            href={publicSiteUrl}
+            className="rounded-full border border-white/10 px-5 py-3 text-sm text-slate-200"
+          >
             Voltar ao início
-          </Link>
+          </a>
         </div>
       </div>
     </div>

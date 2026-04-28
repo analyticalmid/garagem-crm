@@ -5,6 +5,8 @@ import { loadStripe } from "@stripe/stripe-js";
 import { ArrowLeft, BadgeCheck, Loader2, ShieldCheck } from "lucide-react";
 import { billingPlans, isBillingPlan, type BillingPlan } from "@/lib/billingPlans";
 
+const publicSiteUrl = "https://garagemcrm.com.br";
+
 const stripePromise = (() => {
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   return publishableKey ? loadStripe(publishableKey) : Promise.resolve(null);
@@ -81,10 +83,13 @@ export default function Checkout() {
     >
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="rounded-[28px] border border-white/10 bg-[rgba(8,14,28,0.86)] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.38)] backdrop-blur-xl">
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-slate-300 transition hover:text-white">
+          <a
+            href={publicSiteUrl}
+            className="inline-flex items-center gap-2 text-sm text-slate-300 transition hover:text-white"
+          >
             <ArrowLeft className="h-4 w-4" />
             Voltar para o site
-          </Link>
+          </a>
 
           <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-200">
             <ShieldCheck className="h-3.5 w-3.5" />
