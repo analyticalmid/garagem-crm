@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile, AppRole, PlanType } from '@/types/auth';
@@ -48,7 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canViewAllLeads = isAdmin || isGerente;
   const canUseEssencialFeatures = isEssencial || isAdmin || isGerente;
 
-  const fetchProfileAndRole = async (accessToken: string | null | undefined) => {
+  const initializedRef = useRef(false);
+
+  const fetchProfileAndRole = async (
+    accessToken: string | null | undefined,
+    options: { clearOnFailure?: boolean } = {},
+  ) => {
+    const { clearOnFailure = false } = options;
+
     try {
       if (!accessToken) {
         setProfile(null);
@@ -64,8 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        setProfile(null);
-        setRole(null);
+        if (clearOnFailure) {
+          setProfile(null);
+          setRole(null);
+        }
         return;
       }
 
@@ -73,13 +82,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(data.profile as Profile);
       setRole(data.role as AppRole || null);
     } catch {
-      setProfile(null);
-      setRole(null);
+      if (clearOnFailure) {
+        setProfile(null);
+        setRole(null);
+      }
     }
   };
 
-  const refreshAccessState = async (nextSession: Session | null) => {
-    await fetchProfileAndRole(nextSession?.access_token);
+  const refreshAccessState = async (nextSession: Session | null, options?: { clearOnFailure?: boolean }) => {
+    await fetchProfileAndRole(nextSession?.access_token, options);
   };
 
   useEffect(() => {
@@ -89,25 +100,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Defer Supabase calls with setTimeout to avoid deadlock
-        if (session?.user) {
-          setIsLoading(true);
-          setTimeout(() => {
-            void refreshAccessState(session).finally(() => {
-              setIsLoading(false);
-            });
-          }, 0);
-        } else {
+        if (event === 'SIGNED_OUT' || !session?.user) {
           setProfile(null);
           setRole(null);
           setIsLoading(false);
+          return;
         }
 
-        if (event === 'SIGNED_OUT') {
-          setProfile(null);
-          setRole(null);
-          setIsLoading(false);
+        // Keep the full-screen loader only for the first access resolution.
+        if (!initializedRef.current) {
+          setIsLoading(true);
         }
+
+        // Defer Supabase calls with setTimeout to avoid deadlock.
+        setTimeout(() => {
+          void refreshAccessState(session, { clearOnFailure: !initializedRef.current }).finally(() => {
+            initializedRef.current = true;
+            setIsLoading(false);
+          });
+        }, 0);
       }
     );
 
@@ -115,28 +126,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
-        refreshAccessState(session).finally(() => {
+        setIsLoading(true);
+        refreshAccessState(session, { clearOnFailure: true }).finally(() => {
+          initializedRef.current = true;
           setIsLoading(false);
         });
-      } else {
-        setIsLoading(false);
-      }
+        } else {
+          setProfile(null);
+          setRole(null);
+          setIsLoading(false);
+        }
     });
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && session?.user?.id) {
-        void refreshAccessState(session);
-      }
+      if (document.visibilityState !== 'visible') return;
+
+      void supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) {
+          void refreshAccessState(session);
+        }
+      });
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     const refreshInterval = window.setInterval(() => {
-      if (session?.user?.id) {
-        void refreshAccessState(session);
-      }
+      void supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) {
+          void refreshAccessState(session);
+        }
+      });
     }, 60000);
 
     return () => {
@@ -144,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.clearInterval(refreshInterval);
     };
-  }, [session?.user?.id]);
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
