@@ -335,7 +335,6 @@
   .crm-route-enter {
     animation: crm-route-crossfade 340ms cubic-bezier(0.16, 1, 0.3, 1);
     transform-origin: center top;
-    will-change: opacity, transform;
   }
 
   .celebration-card {
