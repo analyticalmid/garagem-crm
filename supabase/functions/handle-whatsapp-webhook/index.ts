@@ -26,15 +26,15 @@ function isMegaApi(raw: any): boolean {
 }
 
 function normalizeMegaApi(raw: any): NormalizedMessage | null {
-  // Ignora mensagens enviadas por nós ou de grupos
-  if (raw.key?.fromMe === true) return null;
-  if (raw.isGroup === true)     return null;
+  if (raw.isGroup === true) return null;
 
-  // Extrai telefone do JID (ex: "556784799363@s.whatsapp.net" → "556784799363")
+  const fromMe = raw.key?.fromMe === true;
+
+  // Para mensagens enviadas (fromMe), o telefone do contato é o remoteJid
+  // Para mensagens recebidas, também é o remoteJid
   const phone = (raw.key?.remoteJid ?? "").replace(/@.*$/, "").replace(/\D/g, "");
   if (!phone) return null;
 
-  // Conteúdo de texto
   const msg = raw.message ?? {};
   const texto =
     msg.conversation ??
@@ -61,7 +61,7 @@ function normalizeMegaApi(raw: any): NormalizedMessage | null {
   return {
     instanceId: raw.instance_key,
     phone,
-    fromMe:     false,
+    fromMe,
     isGroup:    false,
     senderName: raw.pushName ?? phone,
     messageId:  raw.key?.id ?? null,
@@ -72,9 +72,7 @@ function normalizeMegaApi(raw: any): NormalizedMessage | null {
 }
 
 function normalizeZApi(raw: any): NormalizedMessage | null {
-  // Aceita apenas ReceivedCallback / on-message-received
   if (raw.type !== "ReceivedCallback" && raw.type !== "on-message-received") return null;
-  if (raw.fromMe === true)  return null;
   if (raw.isGroup === true) return null;
 
   // Suporta payload flat OU aninhado em raw.message
@@ -249,27 +247,31 @@ Deno.serve(async (req: Request) => {
   // -------------------------------------------------------------------------
   // 4. Inserir mensagem
   // -------------------------------------------------------------------------
+  const direcao = normalized.fromMe ? "outbound" : "inbound";
   await supabase.from("messages").upsert(
-    { conversation_id: conversa.id, telefone: phone, sender: senderName, conteudo: texto, tipo: tipoMidia ?? "text", tipo_midia: tipoMidia, url_midia: urlMidia, direcao: "inbound", enviada_pelo_agente: false, zapi_msg_id: messageId, tenant_id: tenantId },
+    { conversation_id: conversa.id, telefone: phone, sender: senderName, conteudo: texto, tipo: tipoMidia ?? "text", tipo_midia: tipoMidia, url_midia: urlMidia, direcao, enviada_pelo_agente: normalized.fromMe, zapi_msg_id: messageId, tenant_id: tenantId },
     { onConflict: "zapi_msg_id", ignoreDuplicates: true },
   );
 
   // -------------------------------------------------------------------------
-  // 5. Upsert lead_status no Kanban
+  // 5. Upsert lead_status no Kanban (apenas para mensagens do cliente)
   // -------------------------------------------------------------------------
-  const { data: leadAtual } = await supabase
-    .from("lead_status")
-    .select("status")
-    .eq("telefone", phone)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
+  let novoStatus = "novo_lead";
+  if (!normalized.fromMe) {
+    const { data: leadAtual } = await supabase
+      .from("lead_status")
+      .select("status")
+      .eq("telefone", phone)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
 
-  const novoStatus = !leadAtual?.status || leadAtual.status === "perdido" ? "novo_lead" : leadAtual.status;
+    novoStatus = !leadAtual?.status || leadAtual.status === "perdido" ? "novo_lead" : leadAtual.status;
 
-  await supabase.from("lead_status").upsert(
-    { telefone: phone, status: novoStatus, tenant_id: tenantId, ultimo_contato_em: agora },
-    { onConflict: "telefone", ignoreDuplicates: false },
-  );
+    await supabase.from("lead_status").upsert(
+      { telefone: phone, status: novoStatus, tenant_id: tenantId, ultimo_contato_em: agora },
+      { onConflict: "telefone", ignoreDuplicates: false },
+    );
+  }
 
   log("info", "done", { phone, conversaId: conversa.id, leadStatus: novoStatus });
 
