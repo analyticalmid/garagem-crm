@@ -8,17 +8,11 @@ import { Clock3, Instagram, MessageCircleMore } from "lucide-react";
 
 interface LeadCardProps {
   lead: Lead;
+  columnColor?: string;
   onClick?: () => void;
 }
 
-const statusAccentMap = {
-  novo_lead: "#3B82F6",
-  negociando: "#F59E0B",
-  vendido: "#10B981",
-  perdido: "#EF4444",
-} as const;
-
-export const LeadCard = memo(function LeadCard({ lead, onClick }: LeadCardProps) {
+export const LeadCard = memo(function LeadCard({ lead, columnColor, onClick }: LeadCardProps) {
   const referenceDate = lead.lastInteractionAt || lead.created_at;
   const daysIdle = differenceInDays(new Date(), new Date(referenceDate));
   const isStalled = daysIdle >= 5;
@@ -29,7 +23,7 @@ export const LeadCard = memo(function LeadCard({ lead, onClick }: LeadCardProps)
     .slice(0, 2)
     .map((chunk) => chunk[0]?.toUpperCase())
     .join("") || "SL";
-  const accentColor = statusAccentMap[lead.status];
+  const accentColor = columnColor || lead.statusColor || "#3B82F6";
   const timeAgo = formatDistanceToNow(new Date(referenceDate), {
     addSuffix: true,
     locale: ptBR,

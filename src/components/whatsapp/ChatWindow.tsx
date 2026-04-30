@@ -1,11 +1,12 @@
 import { useRef, useEffect, useState } from "react";
-import { Phone, Paperclip, Send, Smile, Loader2, MessageSquare } from "lucide-react";
+import { Phone, Paperclip, Send, Smile, Loader2, MessageSquare, FileText } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { KANBAN_COLUMNS } from "@/types/lead";
+import type { PipelineColumn } from "@/lib/kanbanColumns";
 import type { WhatsappConversation, WhatsappMessage } from "@/views/Whatsapp";
 
 function getInitials(name: string) {
@@ -50,22 +51,72 @@ function formatMsgTime(iso: string) {
   }
 }
 
-function kanbanLabel(status: string) {
-  return KANBAN_COLUMNS.find((c) => c.id === status)?.title || status;
+function kanbanLabel(status: string, columns: PipelineColumn[]) {
+  return columns.find((c) => c.key === status)?.title || KANBAN_COLUMNS.find((c) => c.id === status)?.title || status;
 }
 
-function kanbanDotColor(status: string) {
-  const map: Record<string, string> = {
-    novo_lead: "bg-kanban-novo",
-    negociando: "bg-kanban-negociando",
-    vendido: "bg-kanban-vendido",
-    perdido: "bg-kanban-perdido",
+function kanbanDotStyle(status: string, columns: PipelineColumn[]) {
+  return {
+    backgroundColor:
+      columns.find((column) => column.key === status)?.color ||
+      KANBAN_COLUMNS.find((column) => column.id === status)?.color ||
+      "#64748B",
   };
-  return map[status] || "bg-muted";
+}
+
+function MessageContent({ msg }: { msg: WhatsappMessage }) {
+  const media = msg.tipo_midia || (msg.tipo !== "text" ? msg.tipo : null);
+
+  if (media === "audio" && msg.url_midia) {
+    return (
+      <audio
+        controls
+        src={msg.url_midia}
+        className="max-w-[240px] w-full"
+        style={{ height: 36, accentColor: "var(--primary)" }}
+      />
+    );
+  }
+
+  if (media === "image" && msg.url_midia) {
+    return (
+      <img
+        src={msg.url_midia}
+        alt="imagem"
+        className="max-w-[240px] rounded-xl object-cover"
+        loading="lazy"
+      />
+    );
+  }
+
+  if (media === "document") {
+    return (
+      <a
+        href={msg.url_midia ?? undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 text-sm underline underline-offset-2 opacity-80 hover:opacity-100"
+      >
+        <FileText className="h-4 w-4 shrink-0" />
+        {msg.conteudo || "Documento"}
+      </a>
+    );
+  }
+
+  if (msg.conteudo) {
+    return (
+      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
+        {msg.conteudo}
+      </p>
+    );
+  }
+
+  return null;
 }
 
 interface Props {
   conversation: WhatsappConversation;
+  columns?: PipelineColumn[];
   messages: WhatsappMessage[];
   isLoadingMessages: boolean;
   onSendMessage: (text: string) => void;
@@ -74,6 +125,7 @@ interface Props {
 
 export function ChatWindow({
   conversation,
+  columns = [],
   messages,
   isLoadingMessages,
   onSendMessage,
@@ -118,13 +170,11 @@ export function ChatWindow({
             <p className="truncate text-sm font-semibold text-foreground">{name}</p>
             <div className="flex items-center gap-1.5">
               <span
-                className={cn(
-                  "inline-block h-1.5 w-1.5 rounded-full",
-                  kanbanDotColor(conversation.lead_kanban_status),
-                )}
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={kanbanDotStyle(conversation.lead_kanban_status, columns)}
               />
               <span className="text-xs text-muted-foreground">
-                {kanbanLabel(conversation.lead_kanban_status)}
+                {kanbanLabel(conversation.lead_kanban_status, columns)}
               </span>
             </div>
           </div>
@@ -188,11 +238,7 @@ export function ChatWindow({
                               : "rounded-bl-sm bg-white/[0.07] ring-1 ring-white/[0.06]",
                           )}
                         >
-                          {msg.conteudo && (
-                            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground">
-                              {msg.conteudo}
-                            </p>
-                          )}
+                          <MessageContent msg={msg} />
                           <p
                             className={cn(
                               "mt-0.5 text-right text-[10px]",

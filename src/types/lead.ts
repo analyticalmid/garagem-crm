@@ -1,4 +1,6 @@
-export type LeadStatus = 'novo_lead' | 'negociando' | 'vendido' | 'perdido';
+import { getDefaultPipelineColumns, type PipelineColumn } from "@/lib/kanbanColumns";
+
+export type LeadStatus = string;
 
 export interface Lead {
   id: number;
@@ -6,6 +8,7 @@ export interface Lead {
   telefone: string | null;
   created_at: string;
   status: LeadStatus;
+  statusColor?: string;
   iaRespondeu: boolean;
   assigned_to: string | null;
   assignedUserName?: string | null;
@@ -21,9 +24,10 @@ export interface LeadStatusRecord {
   updated_at: string;
 }
 
-export const KANBAN_COLUMNS: { id: LeadStatus; title: string; color: string }[] = [
-  { id: 'novo_lead', title: 'Novo Lead', color: 'kanban-novo' },
-  { id: 'negociando', title: 'Negociando', color: 'kanban-negociando' },
-  { id: 'vendido', title: 'Vendido', color: 'kanban-vendido' },
-  { id: 'perdido', title: 'Perdido', color: 'kanban-perdido' },
-];
+export const KANBAN_COLUMNS: { id: LeadStatus; title: string; color: string }[] = getDefaultPipelineColumns("leads").map((column) => ({
+  id: column.key,
+  title: column.title,
+  color: column.color,
+}));
+
+export type LeadPipelineColumn = PipelineColumn;

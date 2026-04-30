@@ -14,6 +14,8 @@ import { ConversationList } from "@/components/whatsapp/ConversationList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { LeadSidebar } from "@/components/whatsapp/LeadSidebar";
 import type { LeadStatus } from "@/types/lead";
+import { humanizeColumnKey } from "@/lib/kanbanColumns";
+import type { PipelineColumn } from "@/lib/kanbanColumns";
 
 export interface WhatsappConversation {
   id: string;
@@ -40,6 +42,8 @@ export interface WhatsappMessage {
   sender: string;
   telefone: string;
   tipo: string;
+  tipo_midia: string | null;
+  url_midia: string | null;
 }
 
 export default function Whatsapp() {
@@ -51,6 +55,11 @@ export default function Whatsapp() {
     queryKey: ["whatsapp-conversations"],
     queryFn: () => apiFetch(dataUrl("whatsapp-conversations")),
     refetchInterval: 12_000,
+  });
+  const { data: leadColumns = [] } = useQuery<PipelineColumn[]>({
+    queryKey: ["pipeline-columns", "leads"],
+    queryFn: () => apiFetch(dataUrl("pipeline-columns", { pipeline: "leads" })),
+    staleTime: 60_000,
   });
 
   const selectedConv = conversations.find((c) => c.id === selectedId) ?? null;
@@ -69,12 +78,56 @@ export default function Whatsapp() {
         body: { conteudo: text, telefone, nomeLead },
       });
     },
-    onSuccess: () => {
+    onMutate: async ({ text, telefone }) => {
+      const messageKey = ["whatsapp-messages", telefone] as const;
+      const conversationKey = ["whatsapp-conversations"] as const;
+
+      await queryClient.cancelQueries({ queryKey: messageKey });
+      const previousMessages = queryClient.getQueryData<WhatsappMessage[]>(messageKey) ?? [];
+      const optimisticId = `temp-${crypto.randomUUID()}`;
+      const optimisticMessage: WhatsappMessage = {
+        id: optimisticId,
+        conversation_id: selectedConv?.id ?? telefone,
+        conteudo: text,
+        created_at: new Date().toISOString(),
+        enviada_pelo_agente: true,
+        sender: "agente",
+        telefone,
+        tipo: "text",
+        tipo_midia: null,
+        url_midia: null,
+      };
+
+      queryClient.setQueryData<WhatsappMessage[]>(messageKey, [...previousMessages, optimisticMessage]);
+      queryClient.setQueryData<WhatsappConversation[]>(conversationKey, (old) =>
+        old?.map((conversation) =>
+          conversation.telefone === telefone
+            ? {
+                ...conversation,
+                ultima_mensagem_at: optimisticMessage.created_at,
+                ultima_mensagem_preview: text,
+              }
+            : conversation,
+        ) ?? [],
+      );
+
+      return { previousMessages, messageKey, optimisticId };
+    },
+    onSuccess: (_data, _variables, context) => {
+      if (context) {
+        queryClient.setQueryData<WhatsappMessage[]>(context.messageKey, (current) =>
+          (current ?? []).filter((message) => message.id !== context.optimisticId),
+        );
+      }
       queryClient.invalidateQueries({ queryKey: ["whatsapp-messages", selectedConv?.telefone] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
     },
-    onError: () => {
-      toast.error("Falha ao enviar mensagem");
+    onError: (err, _variables, context) => {
+      if (context) {
+        queryClient.setQueryData(context.messageKey, context.previousMessages);
+      }
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
+      toast.error(err instanceof Error ? err.message : "Falha ao enviar mensagem");
     },
   });
 
@@ -86,7 +139,7 @@ export default function Whatsapp() {
       });
     },
     onSuccess: (_, { status }) => {
-      const label = { novo_lead: "Novo Lead", negociando: "Negociando", vendido: "Vendido", perdido: "Perdido" }[status];
+      const label = humanizeColumnKey(status);
       toast.success(`Lead movido para "${label}"`);
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversations"] });
       queryClient.invalidateQueries({ queryKey: ["leads-kanban"] });
@@ -199,6 +252,7 @@ export default function Whatsapp() {
         {selectedConv ? (
           <ChatWindow
             conversation={selectedConv}
+            columns={leadColumns}
             messages={messages}
             isLoadingMessages={isLoadingMessages}
             onSendMessage={handleSendMessage}
@@ -213,6 +267,7 @@ export default function Whatsapp() {
           <LeadSidebar
             key={selectedConv.id}
             conversation={selectedConv}
+            columns={leadColumns}
             onStatusChange={handleStatusChange}
             onLeadUpdate={handleLeadUpdate}
             isSavingLead={leadMutation.isPending}

@@ -16,8 +16,12 @@ import { usePrevendaLeadsKanban } from '@/hooks/usePrevendaLeadsKanban';
 import { PrevendaKanbanColumn } from '@/components/PrevendaKanbanColumn';
 import { PrevendaLeadDetailsModal } from '@/components/PrevendaLeadDetailsModal';
 import { PrevendaLead, PrevendaLeadStatus } from '@/types/prevendaLead';
+import { useAuth } from '@/contexts/AuthContext';
+import { getPipelineColumnColor } from '@/lib/kanbanColumns';
+import { PipelineColumnsManager } from '@/components/PipelineColumnsManager';
 
 export default function PrevendaLeads() {
+  const { canViewAllLeads } = useAuth();
   const {
     groupedLeads,
     columns,
@@ -88,6 +92,10 @@ export default function PrevendaLeads() {
             />
           </div>
 
+          {canViewAllLeads && columns.length > 0 && (
+            <PipelineColumnsManager pipelineKey="prevenda" columns={columns} />
+          )}
+
           <Button onClick={() => setIsDialogOpen(true)} className="h-10 gap-2 rounded-xl bg-gradient-to-r from-primary to-blue-400 hover:shadow-lg hover:shadow-primary/20 transition-all border-0 px-4">
             <Plus className="h-4 w-4 mr-2" />
             Novo Lead
@@ -102,11 +110,11 @@ export default function PrevendaLeads() {
             <div className="flex h-full min-w-max flex-nowrap gap-5 items-stretch pr-1">
               {columns.map((col) => (
                 <PrevendaKanbanColumn
-                  key={col.id}
-                  id={col.id}
+                  key={col.key}
+                  id={col.key}
                   title={col.title}
-                  color={col.color}
-                  leads={groupedLeads[col.id] || []}
+                  color={getPipelineColumnColor(columns, col.key, 'prevenda')}
+                  leads={groupedLeads[col.key] || []}
                   onLeadClick={handleLeadClick}
                 />
               ))}

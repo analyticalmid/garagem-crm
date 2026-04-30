@@ -115,24 +115,41 @@ export type Database = {
           created_at: string
           id: number
           nome: string | null
-          "observação": string | null
+          observação: string | null
+          Observação: string | null
+          Photo_perfil: string | null
           Telefone_Whatsapp: string | null
+          tenant_id: string
         }
         Insert: {
           created_at?: string
           id?: number
           nome?: string | null
-          "observação"?: string | null
+          observação?: string | null
+          Observação?: string | null
+          Photo_perfil?: string | null
           Telefone_Whatsapp?: string | null
+          tenant_id?: string
         }
         Update: {
           created_at?: string
           id?: number
           nome?: string | null
-          "observação"?: string | null
+          observação?: string | null
+          Observação?: string | null
+          Photo_perfil?: string | null
           Telefone_Whatsapp?: string | null
+          tenant_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "Contatos_Whatsapp_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversations: {
         Row: {
@@ -143,7 +160,9 @@ export type Database = {
           responsavel_id: string | null
           status: string
           telefone: string
+          tenant_id: string
           ultima_mensagem_at: string | null
+          zapi_webhook_id: string | null
         }
         Insert: {
           created_at?: string
@@ -153,7 +172,9 @@ export type Database = {
           responsavel_id?: string | null
           status?: string
           telefone: string
+          tenant_id?: string
           ultima_mensagem_at?: string | null
+          zapi_webhook_id?: string | null
         }
         Update: {
           created_at?: string
@@ -163,7 +184,9 @@ export type Database = {
           responsavel_id?: string | null
           status?: string
           telefone?: string
+          tenant_id?: string
           ultima_mensagem_at?: string | null
+          zapi_webhook_id?: string | null
         }
         Relationships: [
           {
@@ -177,7 +200,28 @@ export type Database = {
             foreignKeyName: "conversations_responsavel_id_fkey"
             columns: ["responsavel_id"]
             isOneToOne: false
+            referencedRelation: "active_user_names"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_zapi_webhook_id_fkey"
+            columns: ["zapi_webhook_id"]
+            isOneToOne: false
+            referencedRelation: "zapi_webhooks"
             referencedColumns: ["id"]
           },
         ]
@@ -203,6 +247,7 @@ export type Database = {
           raw: Json | null
           sold_at: string | null
           status: Database["public"]["Enums"]["vehicle_status"] | null
+          tenant_id: string
           title: string | null
           updated_at: string | null
           vehicle_id: string
@@ -227,6 +272,7 @@ export type Database = {
           raw?: Json | null
           sold_at?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"] | null
+          tenant_id?: string
           title?: string | null
           updated_at?: string | null
           vehicle_id: string
@@ -251,11 +297,20 @@ export type Database = {
           raw?: Json | null
           sold_at?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"] | null
+          tenant_id?: string
           title?: string | null
           updated_at?: string | null
           vehicle_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "estoque_carros_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       estoque_sync_runs: {
         Row: {
@@ -263,6 +318,7 @@ export type Database = {
           source_url: string | null
           started_at: string | null
           sync_id: string
+          tenant_id: string
           total_deactivated: number | null
           total_deleted: number | null
           total_received: number | null
@@ -273,6 +329,7 @@ export type Database = {
           source_url?: string | null
           started_at?: string | null
           sync_id?: string
+          tenant_id?: string
           total_deactivated?: number | null
           total_deleted?: number | null
           total_received?: number | null
@@ -283,39 +340,50 @@ export type Database = {
           source_url?: string | null
           started_at?: string | null
           sync_id?: string
+          tenant_id?: string
           total_deactivated?: number | null
           total_deleted?: number | null
           total_received?: number | null
           total_upserted?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "estoque_sync_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      lead_status: {
+      instancias_whatsapp: {
         Row: {
-          assigned_to: string | null
-          observacao: string | null
-          status: string | null
-          telefone: string
-          updated_at: string | null
-          veiculo_interesse: string | null
+          created_at: string
+          id: number
+          instancia: string | null
+          tennat_id: string | null
         }
         Insert: {
-          assigned_to?: string | null
-          observacao?: string | null
-          status?: string | null
-          telefone: string
-          updated_at?: string | null
-          veiculo_interesse?: string | null
+          created_at?: string
+          id?: number
+          instancia?: string | null
+          tennat_id?: string | null
         }
         Update: {
-          assigned_to?: string | null
-          observacao?: string | null
-          status?: string | null
-          telefone?: string
-          updated_at?: string | null
-          veiculo_interesse?: string | null
+          created_at?: string
+          id?: number
+          instancia?: string | null
+          tennat_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "instancias_whatsapp_tennat_id_fkey"
+            columns: ["tennat_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invitations: {
         Row: {
@@ -353,7 +421,371 @@ export type Database = {
             foreignKeyName: "invitations_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "active_user_names"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_status: {
+        Row: {
+          assigned_to: string | null
+          observacao: string | null
+          status: string | null
+          telefone: string
+          tenant_id: string
+          ultimo_contato_em: string | null
+          updated_at: string | null
+          veiculo_interesse: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          observacao?: string | null
+          status?: string | null
+          telefone: string
+          tenant_id?: string
+          ultimo_contato_em?: string | null
+          updated_at?: string | null
+          veiculo_interesse?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          observacao?: string | null
+          status?: string | null
+          telefone?: string
+          tenant_id?: string
+          ultimo_contato_em?: string | null
+          updated_at?: string | null
+          veiculo_interesse?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_status_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipeline_columns_config: {
+        Row: {
+          color: string
+          column_key: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          pipeline_key: string
+          position: number
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          column_key: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          pipeline_key: string
+          position?: number
+          tenant_id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          column_key?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          pipeline_key?: string
+          position?: number
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_columns_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      margens_veiculos: {
+        Row: {
+          custo_veiculo: number
+          despesas: number
+          id: string
+          observacao: string | null
+          tenant_id: string
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          custo_veiculo?: number
+          despesas?: number
+          id?: string
+          observacao?: string | null
+          tenant_id?: string
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          custo_veiculo?: number
+          despesas?: number
+          id?: string
+          observacao?: string | null
+          tenant_id?: string
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "margens_veiculos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "margens_veiculos_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_carros"
+            referencedColumns: ["vehicle_id"]
+          },
+          {
+            foreignKeyName: "margens_veiculos_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "v_estoque_disponivel"
+            referencedColumns: ["vehicle_id"]
+          },
+        ]
+      }
+      mensagens_whatsapp: {
+        Row: {
+          created_at: string
+          enviada_pelo_vendedor: string | null
+          id: number
+          mensagem: string | null
+          nome_lead: string | null
+          telefone_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          enviada_pelo_vendedor?: string | null
+          id?: number
+          mensagem?: string | null
+          nome_lead?: string | null
+          telefone_id?: string | null
+          tenant_id?: string
+        }
+        Update: {
+          created_at?: string
+          enviada_pelo_vendedor?: string | null
+          id?: number
+          mensagem?: string | null
+          nome_lead?: string | null
+          telefone_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensagens_whatsapp_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          conteudo: string | null
+          conversation_id: string
+          created_at: string
+          direcao: string
+          enviada_pelo_agente: boolean
+          id: string
+          sender: string
+          telefone: string
+          tenant_id: string
+          tipo: string
+          tipo_midia: string | null
+          url_midia: string | null
+          zapi_msg_id: string | null
+        }
+        Insert: {
+          conteudo?: string | null
+          conversation_id: string
+          created_at?: string
+          direcao?: string
+          enviada_pelo_agente?: boolean
+          id?: string
+          sender: string
+          telefone: string
+          tenant_id?: string
+          tipo?: string
+          tipo_midia?: string | null
+          url_midia?: string | null
+          zapi_msg_id?: string | null
+        }
+        Update: {
+          conteudo?: string | null
+          conversation_id?: string
+          created_at?: string
+          direcao?: string
+          enviada_pelo_agente?: boolean
+          id?: string
+          sender?: string
+          telefone?: string
+          tenant_id?: string
+          tipo?: string
+          tipo_midia?: string | null
+          url_midia?: string | null
+          zapi_msg_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_enabled: boolean
+          lead_enabled: boolean
+          push_enabled: boolean
+          sale_enabled: boolean
+          security_enabled: boolean
+          system_enabled: boolean
+          task_enabled: boolean
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_enabled?: boolean
+          lead_enabled?: boolean
+          push_enabled?: boolean
+          sale_enabled?: boolean
+          security_enabled?: boolean
+          system_enabled?: boolean
+          task_enabled?: boolean
+          tenant_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_enabled?: boolean
+          lead_enabled?: boolean
+          push_enabled?: boolean
+          sale_enabled?: boolean
+          security_enabled?: boolean
+          system_enabled?: boolean
+          task_enabled?: boolean
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          action_label: string | null
+          action_url: string | null
+          category: Database["public"]["Enums"]["notification_category"]
+          created_at: string
+          id: string
+          message: string
+          metadata: Json
+          read_at: string | null
+          source_key: string | null
+          tenant_id: string
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          action_label?: string | null
+          action_url?: string | null
+          category?: Database["public"]["Enums"]["notification_category"]
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json
+          read_at?: string | null
+          source_key?: string | null
+          tenant_id?: string
+          title: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          action_label?: string | null
+          action_url?: string | null
+          category?: Database["public"]["Enums"]["notification_category"]
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json
+          read_at?: string | null
+          source_key?: string | null
+          tenant_id?: string
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -366,8 +798,8 @@ export type Database = {
           etapa: string
           id: string
           lead_id: number | null
-          metadata: Json | null
           mensagem_zap: string
+          metadata: Json
           ordem: number
           origem: string
           prazo_label: string
@@ -379,9 +811,10 @@ export type Database = {
           status_resumo: string
           status_tone: string
           telefone: string
+          tenant_id: string
           updated_at: string
-          venda_id: string | null
           veiculo_nome: string
+          venda_id: string | null
         }
         Insert: {
           cliente_nome: string
@@ -390,8 +823,8 @@ export type Database = {
           etapa?: string
           id?: string
           lead_id?: number | null
-          metadata?: Json | null
           mensagem_zap: string
+          metadata?: Json
           ordem?: number
           origem?: string
           prazo_label?: string
@@ -403,9 +836,10 @@ export type Database = {
           status_resumo?: string
           status_tone?: string
           telefone: string
+          tenant_id?: string
           updated_at?: string
-          venda_id?: string | null
           veiculo_nome: string
+          venda_id?: string | null
         }
         Update: {
           cliente_nome?: string
@@ -414,8 +848,8 @@ export type Database = {
           etapa?: string
           id?: string
           lead_id?: number | null
-          metadata?: Json | null
           mensagem_zap?: string
+          metadata?: Json
           ordem?: number
           origem?: string
           prazo_label?: string
@@ -427,11 +861,19 @@ export type Database = {
           status_resumo?: string
           status_tone?: string
           telefone?: string
+          tenant_id?: string
           updated_at?: string
-          venda_id?: string | null
           veiculo_nome?: string
+          venda_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pos_venda_cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "active_user_names"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pos_venda_cards_created_by_fkey"
             columns: ["created_by"]
@@ -450,267 +892,38 @@ export type Database = {
             foreignKeyName: "pos_venda_cards_responsavel_id_fkey"
             columns: ["responsavel_id"]
             isOneToOne: false
+            referencedRelation: "active_user_names"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_venda_cards_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      margens_veiculos: {
-        Row: {
-          custo_veiculo: number
-          despesas: number
-          id: string
-          observacao: string | null
-          updated_at: string
-          vehicle_id: string
-        }
-        Insert: {
-          custo_veiculo?: number
-          despesas?: number
-          id?: string
-          observacao?: string | null
-          updated_at?: string
-          vehicle_id: string
-        }
-        Update: {
-          custo_veiculo?: number
-          despesas?: number
-          id?: string
-          observacao?: string | null
-          updated_at?: string
-          vehicle_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "margens_veiculos_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: true
-            referencedRelation: "estoque_carros"
-            referencedColumns: ["vehicle_id"]
-          },
-          {
-            foreignKeyName: "margens_veiculos_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: true
-            referencedRelation: "v_estoque_disponivel"
-            referencedColumns: ["vehicle_id"]
-          },
-        ]
-      }
-      mensagens_whatsapp: {
-        Row: {
-          created_at: string | null
-          enviado_pelo_vendedor: boolean | null
-          id: string | number
-          mensagem: string | null
-          nome_lead: string | null
-          telefone_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          enviado_pelo_vendedor?: boolean | null
-          id?: string | number
-          mensagem?: string | null
-          nome_lead?: string | null
-          telefone_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          enviado_pelo_vendedor?: boolean | null
-          id?: string | number
-          mensagem?: string | null
-          nome_lead?: string | null
-          telefone_id?: string | null
-        }
-        Relationships: []
-      }
-      Memoria_PostgreSQL_Whatsapp: {
-        Row: {
-          created_at: string
-          id: number
-          Mensagem: Json | null
-          Telefone_whatsapp: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-          Mensagem?: Json | null
-          Telefone_whatsapp?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: number
-          Mensagem?: Json | null
-          Telefone_whatsapp?: string | null
-        }
-        Relationships: []
-      }
-      Mensagens_enviadas: {
-        Row: {
-          chatId: string | null
-          created_at: string
-          enviada_pelo_agene: boolean | null
-          id: number
-          idmensagem: string | null
-        }
-        Insert: {
-          chatId?: string | null
-          created_at?: string
-          enviada_pelo_agene?: boolean | null
-          id?: number
-          idmensagem?: string | null
-        }
-        Update: {
-          chatId?: string | null
-          created_at?: string
-          enviada_pelo_agene?: boolean | null
-          id?: number
-          idmensagem?: string | null
-        }
-        Relationships: []
-      }
-      messages: {
-        Row: {
-          conteudo: string | null
-          conversation_id: string
-          created_at: string
-          enviada_pelo_agente: boolean
-          id: string
-          sender: string
-          telefone: string
-          tipo: string
-        }
-        Insert: {
-          conteudo?: string | null
-          conversation_id: string
-          created_at?: string
-          enviada_pelo_agente?: boolean
-          id?: string
-          sender: string
-          telefone: string
-          tipo?: string
-        }
-        Update: {
-          conteudo?: string | null
-          conversation_id?: string
-          created_at?: string
-          enviada_pelo_agente?: boolean
-          id?: string
-          sender?: string
-          telefone?: string
-          tipo?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "messages_conversation_id_fkey"
-            columns: ["conversation_id"]
+            foreignKeyName: "pos_venda_cards_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
-            referencedRelation: "conversations"
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pos_venda_cards_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_venda_cards_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "view_oportunidades_pos_venda"
+            referencedColumns: ["venda_id"]
+          },
         ]
-      }
-      n8n_chat_histories: {
-        Row: {
-          id: number
-          message: Json
-          session_id: string
-        }
-        Insert: {
-          id?: number
-          message: Json
-          session_id: string
-        }
-        Update: {
-          id?: number
-          message?: Json
-          session_id?: string
-        }
-        Relationships: []
-      }
-      notification_preferences: {
-        Row: {
-          created_at: string
-          email_enabled: boolean
-          lead_enabled: boolean
-          push_enabled: boolean
-          sale_enabled: boolean
-          security_enabled: boolean
-          system_enabled: boolean
-          task_enabled: boolean
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          email_enabled?: boolean
-          lead_enabled?: boolean
-          push_enabled?: boolean
-          sale_enabled?: boolean
-          security_enabled?: boolean
-          system_enabled?: boolean
-          task_enabled?: boolean
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          email_enabled?: boolean
-          lead_enabled?: boolean
-          push_enabled?: boolean
-          sale_enabled?: boolean
-          security_enabled?: boolean
-          system_enabled?: boolean
-          task_enabled?: boolean
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      notifications: {
-        Row: {
-          action_label: string | null
-          action_url: string | null
-          category: Database["public"]["Enums"]["notification_category"]
-          created_at: string
-          id: string
-          message: string
-          metadata: Json
-          read_at: string | null
-          source_key: string | null
-          title: string
-          type: Database["public"]["Enums"]["notification_type"]
-          user_id: string
-        }
-        Insert: {
-          action_label?: string | null
-          action_url?: string | null
-          category?: Database["public"]["Enums"]["notification_category"]
-          created_at?: string
-          id?: string
-          message: string
-          metadata?: Json
-          read_at?: string | null
-          source_key?: string | null
-          title: string
-          type?: Database["public"]["Enums"]["notification_type"]
-          user_id: string
-        }
-        Update: {
-          action_label?: string | null
-          action_url?: string | null
-          category?: Database["public"]["Enums"]["notification_category"]
-          created_at?: string
-          id?: string
-          message?: string
-          metadata?: Json
-          read_at?: string | null
-          source_key?: string | null
-          title?: string
-          type?: Database["public"]["Enums"]["notification_type"]
-          user_id?: string
-        }
-        Relationships: []
       }
       prevenda_contatos: {
         Row: {
@@ -721,6 +934,7 @@ export type Database = {
           observacao: string | null
           status: string | null
           telefone_whatsapp: string | null
+          tenant_id: string
           updated_at: string | null
           veiculo_ano_fab: number | null
           veiculo_ano_mod: number | null
@@ -739,6 +953,7 @@ export type Database = {
           observacao?: string | null
           status?: string | null
           telefone_whatsapp?: string | null
+          tenant_id?: string
           updated_at?: string | null
           veiculo_ano_fab?: number | null
           veiculo_ano_mod?: number | null
@@ -757,6 +972,7 @@ export type Database = {
           observacao?: string | null
           status?: string | null
           telefone_whatsapp?: string | null
+          tenant_id?: string
           updated_at?: string | null
           veiculo_ano_fab?: number | null
           veiculo_ano_mod?: number | null
@@ -772,7 +988,21 @@ export type Database = {
             foreignKeyName: "prevenda_contatos_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false
+            referencedRelation: "active_user_names"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prevenda_contatos_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prevenda_contatos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -787,7 +1017,7 @@ export type Database = {
           is_active: boolean
           phone: string | null
           plan_type: Database["public"]["Enums"]["plan_type"]
-          tenant_id: string
+          tenant_id: string | null
           updated_at: string
         }
         Insert: {
@@ -799,7 +1029,7 @@ export type Database = {
           is_active?: boolean
           phone?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"]
-          tenant_id?: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -811,10 +1041,18 @@ export type Database = {
           is_active?: boolean
           phone?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"]
-          tenant_id?: string
+          tenant_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tarefas: {
         Row: {
@@ -828,6 +1066,7 @@ export type Database = {
           responsavel_id: string | null
           responsavel_nome: string | null
           status: Database["public"]["Enums"]["task_status"]
+          tenant_id: string
           titulo: string
           updated_at: string | null
           venda_id: string | null
@@ -843,6 +1082,7 @@ export type Database = {
           responsavel_id?: string | null
           responsavel_nome?: string | null
           status?: Database["public"]["Enums"]["task_status"]
+          tenant_id?: string
           titulo: string
           updated_at?: string | null
           venda_id?: string | null
@@ -858,6 +1098,7 @@ export type Database = {
           responsavel_id?: string | null
           responsavel_nome?: string | null
           status?: Database["public"]["Enums"]["task_status"]
+          tenant_id?: string
           titulo?: string
           updated_at?: string | null
           venda_id?: string | null
@@ -867,7 +1108,21 @@ export type Database = {
             foreignKeyName: "tarefas_responsavel_id_fkey"
             columns: ["responsavel_id"]
             isOneToOne: false
+            referencedRelation: "active_user_names"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -876,17 +1131,26 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_active: boolean
           name: string
+          slug: string
+          updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_active?: boolean
           name: string
+          slug: string
+          updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_active?: boolean
           name?: string
+          slug?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -912,7 +1176,15 @@ export type Database = {
           tenant_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vendas: {
         Row: {
@@ -922,7 +1194,7 @@ export type Database = {
           created_at: string | null
           data_venda: string | null
           forma_pagamento: Database["public"]["Enums"]["forma_pagamento"] | null
-          historico_saude: Json | null
+          historico_saude: Json
           id: string
           km_veiculo: number | null
           marca_veiculo: string | null
@@ -930,6 +1202,7 @@ export type Database = {
           nome_veiculo: string | null
           observacao: string | null
           preco_venda: number | null
+          tenant_id: string
           updated_at: string | null
           valor_entrada: number | null
           valor_financiamento: number | null
@@ -945,7 +1218,7 @@ export type Database = {
           forma_pagamento?:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
-          historico_saude?: Json | null
+          historico_saude?: Json
           id?: string
           km_veiculo?: number | null
           marca_veiculo?: string | null
@@ -953,6 +1226,7 @@ export type Database = {
           nome_veiculo?: string | null
           observacao?: string | null
           preco_venda?: number | null
+          tenant_id?: string
           updated_at?: string | null
           valor_entrada?: number | null
           valor_financiamento?: number | null
@@ -968,7 +1242,7 @@ export type Database = {
           forma_pagamento?:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
-          historico_saude?: Json | null
+          historico_saude?: Json
           id?: string
           km_veiculo?: number | null
           marca_veiculo?: string | null
@@ -976,6 +1250,7 @@ export type Database = {
           nome_veiculo?: string | null
           observacao?: string | null
           preco_venda?: number | null
+          tenant_id?: string
           updated_at?: string | null
           valor_entrada?: number | null
           valor_financiamento?: number | null
@@ -984,18 +1259,32 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "vendas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "vendas_vehicle_id_fkey"
             columns: ["vehicle_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "estoque_carros"
             referencedColumns: ["vehicle_id"]
           },
           {
             foreignKeyName: "vendas_vehicle_id_fkey"
             columns: ["vehicle_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_estoque_disponivel"
             referencedColumns: ["vehicle_id"]
+          },
+          {
+            foreignKeyName: "vendas_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "active_user_names"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "vendas_vendedor_id_fkey"
@@ -1006,25 +1295,67 @@ export type Database = {
           },
         ]
       }
+      zapi_webhooks: {
+        Row: {
+          api_host: string | null
+          ativo: boolean
+          created_at: string
+          id: string
+          nome_loja: string
+          tenant_id: string
+          updated_at: string
+          zapi_client_token: string | null
+          zapi_instance_id: string
+          zapi_token: string
+        }
+        Insert: {
+          api_host?: string | null
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome_loja: string
+          tenant_id?: string
+          updated_at?: string
+          zapi_client_token?: string | null
+          zapi_instance_id: string
+          zapi_token: string
+        }
+        Update: {
+          api_host?: string | null
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome_loja?: string
+          tenant_id?: string
+          updated_at?: string
+          zapi_client_token?: string | null
+          zapi_instance_id?: string
+          zapi_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zapi_webhooks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      view_oportunidades_pos_venda: {
+      active_user_names: {
         Row: {
-          comprador_nome: string | null
-          comprador_telefone: string | null
-          data_venda: string | null
-          dias_desde_venda: number | null
-          dono_loja_id: string | null
-          historico_saude: Json | null
-          mensagem_sugerida: string | null
-          modelo_veiculo: string | null
-          nome_cliente: string | null
-          oportunidade_kind: string | null
-          oportunidade_label: string | null
-          prazo_label: string | null
-          suggested_column_id: string | null
-          venda_id: string | null
-          veiculo_nome: string | null
+          full_name: string | null
+          id: string | null
+        }
+        Insert: {
+          full_name?: string | null
+          id?: string | null
+        }
+        Update: {
+          full_name?: string | null
+          id?: string | null
         }
         Relationships: []
       }
@@ -1094,17 +1425,82 @@ export type Database = {
         }
         Relationships: []
       }
-      v_mensagens_por_chat: {
+      view_oportunidades_pos_venda: {
         Row: {
-          chat_id: string | null
-          ia_respondeu: boolean | null
-          last_message_at: string | null
-          total_mensagens: number | null
+          comprador_nome: string | null
+          comprador_telefone: string | null
+          data_venda: string | null
+          dias_desde_venda: number | null
+          dono_loja_id: string | null
+          historico_saude: Json | null
+          mensagem_sugerida: string | null
+          modelo_veiculo: string | null
+          nome_cliente: string | null
+          oportunidade_kind: string | null
+          oportunidade_label: string | null
+          prazo_label: string | null
+          suggested_column_id: string | null
+          veiculo_nome: string | null
+          venda_id: string | null
         }
-        Relationships: []
+        Insert: {
+          comprador_nome?: string | null
+          comprador_telefone?: string | null
+          data_venda?: string | null
+          dias_desde_venda?: never
+          dono_loja_id?: string | null
+          historico_saude?: never
+          mensagem_sugerida?: never
+          modelo_veiculo?: string | null
+          nome_cliente?: never
+          oportunidade_kind?: never
+          oportunidade_label?: never
+          prazo_label?: never
+          suggested_column_id?: never
+          veiculo_nome?: never
+          venda_id?: string | null
+        }
+        Update: {
+          comprador_nome?: string | null
+          comprador_telefone?: string | null
+          data_venda?: string | null
+          dias_desde_venda?: never
+          dono_loja_id?: string | null
+          historico_saude?: never
+          mensagem_sugerida?: never
+          modelo_veiculo?: string | null
+          nome_cliente?: never
+          oportunidade_kind?: never
+          oportunidade_label?: never
+          prazo_label?: never
+          suggested_column_id?: never
+          veiculo_nome?: never
+          venda_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_tenant_id_fkey"
+            columns: ["dono_loja_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
+      append_historico_saude_venda: {
+        Args: {
+          _canal?: string
+          _metadata?: Json
+          _observacao: string
+          _status?: string
+          _tipo_contato: string
+          _venda_id: string
+        }
+        Returns: Json
+      }
+      can_access_essencial_feature: { Args: never; Returns: boolean }
       can_write_lead_status: {
         Args: { _new_assigned_to: string; _telefone: string }
         Returns: boolean
@@ -1123,6 +1519,13 @@ export type Database = {
         }
         Returns: string
       }
+      current_plan_type: {
+        Args: never
+        Returns: Database["public"]["Enums"]["plan_type"]
+      }
+      current_tenant_id: { Args: never; Returns: string }
+      default_tenant_id: { Args: never; Returns: string }
+      fallback_tenant_id: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -1142,14 +1545,23 @@ export type Database = {
         Args: { _notification_id: string }
         Returns: undefined
       }
-      validate_tenant_user_limit: {
-        Args: { _tenant_id?: string }
-        Returns: boolean
+      plan_user_limit: {
+        Args: { _plan: Database["public"]["Enums"]["plan_type"] }
+        Returns: number
       }
       sync_notification_automation: { Args: never; Returns: Json }
       sync_prune_inventory: {
         Args: { p_hard_delete?: boolean; p_sync_id: string }
         Returns: number
+      }
+      tenant_id_for_user: { Args: { _user_id: string }; Returns: string }
+      tenant_plan_type: {
+        Args: { _tenant_id?: string }
+        Returns: Database["public"]["Enums"]["plan_type"]
+      }
+      validate_tenant_user_limit: {
+        Args: { _tenant_id?: string }
+        Returns: boolean
       }
     }
     Enums: {
@@ -1295,6 +1707,7 @@ export const Constants = {
       forma_pagamento: ["avista", "financiado"],
       notification_category: ["system", "lead", "task", "sale", "security"],
       notification_type: ["info", "success", "warning", "error"],
+      plan_type: ["pro", "essencial"],
       task_priority: ["baixa", "media", "alta"],
       task_status: ["a_fazer", "em_andamento", "concluida", "cancelada"],
       vehicle_status: ["disponivel", "negociando", "vendido"],

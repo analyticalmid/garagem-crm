@@ -4,6 +4,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/route";
 import { billingPlans } from "@/lib/billingPlans";
 import { getStripeClient } from "@/lib/stripe";
 import type { Database, Json } from "@/integrations/supabase/types";
+import { slugifyColumnTitle } from "@/lib/kanbanColumns";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,9 +89,10 @@ async function findProfileByEmail(serviceClient: NonNullable<ReturnType<typeof c
 }
 
 async function createTenant(serviceClient: NonNullable<ReturnType<typeof createSupabaseServiceClient>>, name: string) {
+  const slug = `${slugifyColumnTitle(name) || "tenant"}_${crypto.randomUUID().slice(0, 8)}`;
   const { data, error } = await serviceClient
     .from("tenants")
-    .insert({ name })
+    .insert({ name, slug })
     .select("id, name")
     .single();
 

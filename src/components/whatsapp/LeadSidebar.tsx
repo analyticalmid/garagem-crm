@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { KANBAN_COLUMNS, type LeadStatus } from "@/types/lead";
+import type { PipelineColumn } from "@/lib/kanbanColumns";
 import type { WhatsappConversation } from "@/views/Whatsapp";
 
 const STAGE_STYLES: Record<string, { dot: string; badge: string }> = {
@@ -34,12 +35,13 @@ const STAGE_STYLES: Record<string, { dot: string; badge: string }> = {
 
 interface Props {
   conversation: WhatsappConversation;
+  columns?: PipelineColumn[];
   onStatusChange: (telefone: string, newStatus: LeadStatus) => Promise<void>;
   onLeadUpdate: (payload: { id?: number; telefone?: string; nome?: string | null; observacao?: string | null }) => Promise<void>;
   isSavingLead: boolean;
 }
 
-export function LeadSidebar({ conversation, onStatusChange, onLeadUpdate, isSavingLead }: Props) {
+export function LeadSidebar({ conversation, columns = [], onStatusChange, onLeadUpdate, isSavingLead }: Props) {
   const [isMoving, setIsMoving] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -57,7 +59,13 @@ export function LeadSidebar({ conversation, onStatusChange, onLeadUpdate, isSavi
   const phone = conversation.telefone?.replace("@s.whatsapp.net", "") || "";
   const name = conversation.lead_nome || conversation.telefone || "Sem nome";
   const styles = STAGE_STYLES[localStatus] || STAGE_STYLES.novo_lead;
-  const currentLabel = KANBAN_COLUMNS.find((c) => c.id === localStatus)?.title || localStatus;
+  const currentLabel =
+    columns.find((column) => column.key === localStatus)?.title ||
+    KANBAN_COLUMNS.find((c) => c.id === localStatus)?.title ||
+    localStatus;
+  const availableColumns = columns.length > 0
+    ? columns.map((column) => ({ id: column.key, title: column.title }))
+    : KANBAN_COLUMNS;
 
   const handleStageChange = async (newStatus: LeadStatus) => {
     if (newStatus === localStatus || isMoving) return;
@@ -209,7 +217,7 @@ export function LeadSidebar({ conversation, onStatusChange, onLeadUpdate, isSavi
             className="w-48 rounded-xl border-white/[0.08] bg-popover"
             align="start"
           >
-            {KANBAN_COLUMNS.map((col) => {
+            {availableColumns.map((col) => {
               const s = STAGE_STYLES[col.id] || STAGE_STYLES.novo_lead;
               return (
                 <DropdownMenuItem
@@ -232,7 +240,7 @@ export function LeadSidebar({ conversation, onStatusChange, onLeadUpdate, isSavi
 
         {/* Quick stage buttons */}
         <div className="grid grid-cols-2 gap-1.5">
-          {KANBAN_COLUMNS.map((col) => {
+          {availableColumns.map((col) => {
             const s = STAGE_STYLES[col.id] || STAGE_STYLES.novo_lead;
             const isActive = col.id === localStatus;
             return (
