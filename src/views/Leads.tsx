@@ -4,8 +4,8 @@ import { useLeadsKanban } from "@/hooks/useLeadsKanban";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { LeadDetailsModal } from "@/components/LeadDetailsModal";
 import { SaleCelebration } from "@/components/SaleCelebration";
-import { KANBAN_COLUMNS, LeadStatus, Lead } from "@/types/lead";
-import { Loader2, Plus, Search } from "lucide-react";
+import { LeadStatus, Lead } from "@/types/lead";
+import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,10 +21,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { apiFetch, dataUrl } from "@/lib/api";
+import { buildPipelineGroups, getPipelineColumnColor, getPipelineColumnLabel } from "@/lib/kanbanColumns";
+import { PipelineColumnsManager } from "@/components/PipelineColumnsManager";
 
 const Leads = () => {
-  const { profile } = useAuth();
-  const { leadsByStatus, isLoading, updateStatus, leads } = useLeadsKanban();
+  const { profile, isEssencial, canViewAllLeads } = useAuth();
+  const { columns, isLoading, updateStatus, leads } = useLeadsKanban();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   
@@ -71,12 +73,10 @@ const Leads = () => {
   };
 
   // Filtered leads by status
-  const filteredLeadsByStatus = useMemo(() => ({
-    novo_lead: filterLeads(leadsByStatus.novo_lead),
-    negociando: filterLeads(leadsByStatus.negociando),
-    vendido: filterLeads(leadsByStatus.vendido),
-    perdido: filterLeads(leadsByStatus.perdido),
-  }), [leadsByStatus, debouncedSearch]);
+  const filteredLeadsByStatus = useMemo(
+    () => buildPipelineGroups(filterLeads(leads), columns),
+    [columns, debouncedSearch, leads],
+  );
 
   // Check if there are any results
   const hasResults = useMemo(() => 
@@ -140,7 +140,7 @@ const Leads = () => {
       return;
     }
 
-    toast.success(`Lead movido para "${KANBAN_COLUMNS.find(c => c.id === newStatus)?.title}"`);
+    toast.success(`Lead movido para "${getPipelineColumnLabel(columns, newStatus)}"`);
   };
 
   const handleLeadClick = (lead: Lead) => {
@@ -158,8 +158,8 @@ const Leads = () => {
           <div className="h-10 w-32 rounded-xl bg-white/[0.06] animate-pulse" />
         </div>
         <div className="flex flex-1 gap-4 overflow-hidden">
-          {KANBAN_COLUMNS.map((col) => (
-            <div key={col.id} className="flex w-72 shrink-0 flex-col gap-3">
+          {columns.map((col) => (
+            <div key={col.key} className="flex w-72 shrink-0 flex-col gap-3">
               <div className="h-8 w-full rounded-lg bg-white/[0.06] animate-pulse" />
               {[1, 2, 3].map((i) => (
                 <div key={i} className="h-20 w-full rounded-xl bg-white/[0.04] animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
@@ -181,7 +181,7 @@ const Leads = () => {
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Pipeline de Leads</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Arraste os cards para mover leads entre as etapas
+            Arraste os cards para mover leads entre as etapas do seu funil
           </p>
         </div>
 
@@ -196,6 +196,10 @@ const Leads = () => {
               className="h-10 rounded-xl border-white/[0.06] bg-white/[0.03] pl-10 focus-visible:border-primary/30 focus-visible:ring-primary/20"
             />
           </div>
+
+          {isEssencial && canViewAllLeads && columns.length > 0 && (
+            <PipelineColumnsManager pipelineKey="leads" columns={columns} />
+          )}
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -253,13 +257,13 @@ const Leads = () => {
           <div className="flex-1 min-h-0 overflow-hidden rounded-[28px] border border-white/[0.04] bg-black/10">
             <div className="h-full overflow-x-auto overflow-y-hidden scroll-smooth px-1 pb-3 [scrollbar-gutter:stable]">
               <div className="flex h-full min-w-max flex-nowrap gap-5 items-stretch pr-1">
-                {KANBAN_COLUMNS.map((column) => (
+                {columns.map((column) => (
                   <KanbanColumn
-                    key={column.id}
-                    id={column.id}
+                    key={column.key}
+                    id={column.key}
                     title={column.title}
-                    leads={filteredLeadsByStatus[column.id]}
-                    colorClass={column.color}
+                    leads={filteredLeadsByStatus[column.key] || []}
+                    color={getPipelineColumnColor(columns, column.key, "leads")}
                     onLeadClick={handleLeadClick}
                   />
                 ))}

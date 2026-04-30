@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { PrevendaLead, PrevendaLeadStatus, PREVENDA_KANBAN_COLUMNS } from '@/types/prevendaLead';
+import type { PipelineColumn } from '@/lib/kanbanColumns';
 
 interface PrevendaLeadDetailsModalProps {
   lead: PrevendaLead | null;
@@ -84,6 +85,12 @@ export function PrevendaLeadDetailsModal({ lead, open, onOpenChange }: PrevendaL
       return apiFetch<{ id: string; full_name: string | null; email: string | null }[]>(dataUrl('profiles-active'));
     },
     enabled: open,
+  });
+  const { data: columns = PREVENDA_KANBAN_COLUMNS.map((column) => ({ key: column.id, title: column.title, color: column.color })) as PipelineColumn[] } = useQuery({
+    queryKey: ['pipeline-columns', 'prevenda'],
+    queryFn: async () => apiFetch<PipelineColumn[]>(dataUrl('pipeline-columns', { pipeline: 'prevenda' })),
+    enabled: open,
+    staleTime: 60 * 1000,
   });
 
   useEffect(() => {
@@ -216,8 +223,8 @@ export function PrevendaLeadDetailsModal({ lead, open, onOpenChange }: PrevendaL
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {PREVENDA_KANBAN_COLUMNS.map((column) => (
-                            <SelectItem key={column.id} value={column.id}>
+                          {columns.map((column) => (
+                            <SelectItem key={column.key} value={column.key}>
                               {column.title}
                             </SelectItem>
                           ))}

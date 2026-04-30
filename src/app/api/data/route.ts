@@ -3,14 +3,24 @@ import { NextResponse } from "next/server";
 import { createSupabaseRouteClient, createSupabaseServiceClient, getBearerToken } from "@/lib/supabase/route";
 import { normalizeLeadPhone } from "@/lib/leadPhone";
 import type { Database, Json } from "@/integrations/supabase/types";
+import {
+  ensureUniqueColumnKey,
+  getDefaultPipelineColumns,
+  getFirstPipelineColumnKey,
+  getNegotiatingColumnKey,
+  slugifyColumnTitle,
+  type PipelineColumn,
+  type PipelineKey,
+} from "@/lib/kanbanColumns";
 
 type SupabaseRouteClient = ReturnType<typeof createSupabaseRouteClient>;
 type AppRole = Database["public"]["Enums"]["app_role"];
 type PlanType = Database["public"]["Enums"]["plan_type"];
-type LeadStatus = "novo_lead" | "negociando" | "vendido" | "perdido";
+type LeadStatus = string;
 type VehicleStatus = Database["public"]["Enums"]["vehicle_status"];
 type WhatsappMessageRow = Database["public"]["Tables"]["mensagens_whatsapp"]["Row"];
 type LooseWhatsappMessageRow = WhatsappMessageRow & Record<string, unknown>;
+type PipelineColumnRow = Database["public"]["Tables"]["pipeline_columns_config"]["Row"];
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,6 +29,119 @@ const PAGE_SIZE = 1000;
 
 function getWhatsappDataClient(supabase: SupabaseRouteClient) {
   return createSupabaseServiceClient() ?? supabase;
+}
+
+function mapPipelineColumnRow(row: PipelineColumnRow): PipelineColumn {
+  return {
+    key: row.column_key,
+    title: row.title,
+    position: row.position,
+    isDefault: row.is_default,
+    isActive: row.is_active,
+    color: row.color,
+  };
+}
+
+async function selectPipelineColumns(
+  supabase: SupabaseRouteClient,
+  pipelineKey: PipelineKey,
+) {
+  const { data, error } = await supabase
+    .from("pipeline_columns_config")
+    .select("tenant_id, pipeline_key, column_key, title, position, is_default, is_active, color")
+    .eq("pipeline_key", pipelineKey)
+    .eq("is_active", true)
+    .order("position", { ascending: true });
+
+  if (error) {
+    if (isMissingPipelineColumnsTable(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+  return (data || []).map(mapPipelineColumnRow);
+}
+
+async function bootstrapPipelineColumns(
+  tenantId: string,
+  pipelineKey: PipelineKey,
+) {
+  const serviceClient = createSupabaseServiceClient();
+  if (!serviceClient) return getDefaultPipelineColumns(pipelineKey);
+
+  const defaults = getDefaultPipelineColumns(pipelineKey);
+  const payload = defaults.map((column) => ({
+    tenant_id: tenantId,
+    pipeline_key: pipelineKey,
+    column_key: column.key,
+    title: column.title,
+    position: column.position,
+    is_default: column.isDefault,
+    is_active: true,
+    color: column.color,
+  }));
+
+  const { error } = await serviceClient.from("pipeline_columns_config").upsert(payload, {
+    onConflict: "tenant_id,pipeline_key,column_key",
+    ignoreDuplicates: true,
+  });
+
+  if (error) throw error;
+  return defaults;
+}
+
+async function getPipelineColumns(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  pipelineKey: PipelineKey,
+) {
+  if (session.planType !== "essencial" || !session.tenantId) {
+    return getDefaultPipelineColumns(pipelineKey);
+  }
+
+  const existing = await selectPipelineColumns(session.supabase, pipelineKey);
+  if (existing === null) {
+    return getDefaultPipelineColumns(pipelineKey);
+  }
+  if (existing.length > 0) return existing;
+
+  await bootstrapPipelineColumns(session.tenantId, pipelineKey);
+  const bootstrapped = await selectPipelineColumns(session.supabase, pipelineKey);
+  return bootstrapped ?? getDefaultPipelineColumns(pipelineKey);
+}
+
+async function assertManagerCanEditPipeline(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  pipelineKey: PipelineKey,
+) {
+  if (session.planType !== "essencial" || !session.tenantId) {
+    throw new Response(JSON.stringify({ error: "Personalização disponível apenas no plano Essencial." }), { status: 403 });
+  }
+
+  if (!session.isManager) {
+    throw new Response(JSON.stringify({ error: "Apenas gestores podem alterar colunas do pipeline." }), { status: 403 });
+  }
+
+  if (pipelineKey !== "leads" && pipelineKey !== "prevenda") {
+    throw new Response(JSON.stringify({ error: "Pipeline inválido." }), { status: 400 });
+  }
+}
+
+function normalizePipelineKey(value: unknown): PipelineKey {
+  return value === "prevenda" ? "prevenda" : "leads";
+}
+
+async function ensureValidPipelineStatus(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  pipelineKey: PipelineKey,
+  status: string,
+) {
+  const columns = await getPipelineColumns(session, pipelineKey);
+  const exists = columns.some((column) => column.key === status);
+  if (!exists) {
+    throw new Response(JSON.stringify({ error: "A coluna informada não existe para este pipeline." }), { status: 400 });
+  }
+  return columns;
 }
 
 // Cache sessão para evitar 2 round-trips ao Supabase por request
@@ -41,6 +164,22 @@ function jsonError(error: unknown, status = 500) {
           : JSON.stringify(error)
       : String(error || "Erro interno.");
   return NextResponse.json({ error: message }, { status });
+}
+
+function isMissingPipelineColumnsTable(error: unknown) {
+  const message =
+    typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"
+      ? error.message
+      : String(error || "");
+
+  return (
+    message.includes("pipeline_columns_config") &&
+    (message.includes("does not exist") || message.includes("schema cache") || message.includes("Could not find"))
+  );
+}
+
+function pipelineColumnsMigrationMessage() {
+  return "A migration do banco para colunas personalizadas ainda não foi aplicada. Rode a migration `20260430130000_add_pipeline_columns_config.sql` no Supabase para liberar esse recurso.";
 }
 
 async function requireSession(request: Request) {
@@ -209,7 +348,8 @@ function isSellerMessage(row: LooseWhatsappMessageRow) {
 
 async function fetchMensagensAgregadas(supabase: SupabaseRouteClient, select = "chat_id, ia_respondeu") {
   // Primeira página com count para paralelizar as demais
-  const { data: firstPage, count, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: firstPage, count, error } = await (supabase as any)
     .from("v_mensagens_por_chat")
     .select(select, { count: "exact" })
     .range(0, PAGE_SIZE - 1);
@@ -220,8 +360,9 @@ async function fetchMensagensAgregadas(supabase: SupabaseRouteClient, select = "
   }
 
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const remainingFetches = Array.from({ length: totalPages - 1 }, (_, i) =>
-    supabase
+    (supabase as any)
       .from("v_mensagens_por_chat")
       .select(select)
       .range((i + 1) * PAGE_SIZE, (i + 2) * PAGE_SIZE - 1),
@@ -235,8 +376,12 @@ async function fetchMensagensAgregadas(supabase: SupabaseRouteClient, select = "
   return allRows as unknown as Record<string, unknown>[];
 }
 
-async function handleLeadsKanban(supabase: SupabaseRouteClient, userId: string, canViewAllLeads: boolean) {
+async function handleLeadsKanban(session: Awaited<ReturnType<typeof requireSession>>) {
+  const { supabase, user, canViewAllLeads } = session;
   const t0 = Date.now();
+  const columns = await getPipelineColumns(session, "leads");
+  const firstColumnKey = getFirstPipelineColumnKey(columns);
+  const negotiatingColumnKey = getNegotiatingColumnKey(columns);
   const [
     { data: contatos, error: contatosError },
     { data: statusRecords, error: statusError },
@@ -306,13 +451,13 @@ async function handleLeadsKanban(supabase: SupabaseRouteClient, userId: string, 
       const hasMessage = normalizedPhone ? telefonesComMensagem.has(normalizedPhone) : false;
 
       let status: LeadStatus;
-      if (manualStatus) {
+      if (manualStatus && columns.some((column) => column.key === manualStatus)) {
         // Status manual sempre tem prioridade sobre inferência por mensagens
         status = manualStatus;
       } else if (hasMessage) {
-        status = "negociando";
+        status = negotiatingColumnKey;
       } else {
-        status = "novo_lead";
+        status = firstColumnKey;
       }
 
       return {
@@ -332,10 +477,16 @@ async function handleLeadsKanban(supabase: SupabaseRouteClient, userId: string, 
     });
 
   if (!canViewAllLeads) {
-    return leads.filter((lead) => lead.assigned_to === userId || lead.assigned_to === null);
+    return {
+      columns,
+      leads: leads.filter((lead) => lead.assigned_to === user.id || lead.assigned_to === null),
+    };
   }
 
-  return leads;
+  return {
+    columns,
+    leads,
+  };
 }
 
 async function getDashboard(supabase: SupabaseRouteClient) {
@@ -575,7 +726,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const op = url.searchParams.get("op");
     const session = await requireSession(request);
-    const { supabase, user, canViewAllLeads } = session;
+    const { supabase, user, canViewAllLeads, tenantId } = session;
 
     switch (op) {
       case "profiles-active": {
@@ -627,8 +778,12 @@ export async function GET(request: Request) {
           tenantId: session.tenantId,
         });
       }
+      case "pipeline-columns": {
+        const pipeline = normalizePipelineKey(url.searchParams.get("pipeline"));
+        return NextResponse.json(await getPipelineColumns(session, pipeline));
+      }
       case "leads-kanban":
-        return NextResponse.json(await handleLeadsKanban(supabase, user.id, canViewAllLeads));
+        return NextResponse.json(await handleLeadsKanban(session));
       case "lead": {
         const id = Number(url.searchParams.get("id"));
         const { data, error } = await supabase.from("Contatos_Whatsapp").select("*").eq("id", id).maybeSingle();
@@ -643,12 +798,15 @@ export async function GET(request: Request) {
       }
       case "prevenda-leads": {
         assertEssencialFeature(session);
-        const { data, error } = await supabase
+        const [columns, { data, error }] = await Promise.all([
+          getPipelineColumns(session, "prevenda"),
+          supabase
           .from("prevenda_contatos")
           .select("*")
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false }),
+        ]);
         if (error) throw error;
-        return NextResponse.json(data || []);
+        return NextResponse.json({ columns, leads: data || [] });
       }
       case "prevenda-lead": {
         assertEssencialFeature(session);
@@ -766,92 +924,104 @@ export async function GET(request: Request) {
         return NextResponse.json(created);
       }
       case "whatsapp-conversations": {
-        const whatsappClient = getWhatsappDataClient(supabase);
+        const waClient = getWhatsappDataClient(supabase);
+        const tid = tenantId ?? "00000000-0000-0000-0000-000000000001";
         const [
-          { data: rawMessages, error: messagesError },
           { data: conversationRows, error: conversationsError },
           { data: statusRecords, error: statusError },
           { data: profiles, error: profilesError },
           { data: contatos, error: contatosError },
+          { data: previewMessages, error: previewError },
+          { data: recentInboundMessages, error: inboundPreviewError },
         ] = await Promise.all([
-          whatsappClient.from("mensagens_whatsapp").select("*"),
-          supabase
+          waClient
             .from("conversations")
-            .select("id, telefone, lead_id, nao_lidas, responsavel_id, status, ultima_mensagem_at"),
+            .select("id, telefone, lead_id, nao_lidas, responsavel_id, status, ultima_mensagem_at")
+            .eq("tenant_id", tid),
           supabase.from("lead_status").select("telefone, status, veiculo_interesse, observacao, assigned_to"),
           supabase.from("profiles").select("id, full_name"),
           supabase.from("Contatos_Whatsapp").select("*"),
+          waClient
+            .from("messages")
+            .select("conversation_id, conteudo, created_at")
+            .eq("tenant_id", tid)
+            .order("created_at", { ascending: false })
+            .limit(1000),
+          waClient
+            .from("messages")
+            .select("conversation_id, sender, created_at")
+            .eq("tenant_id", tid)
+            .eq("direcao", "inbound")
+            .order("created_at", { ascending: false })
+            .limit(1000),
         ]);
-        if (messagesError) throw messagesError;
         if (conversationsError) throw conversationsError;
         if (statusError) throw statusError;
         if (profilesError) throw profilesError;
         if (contatosError) throw contatosError;
+        if (previewError) throw previewError;
+        if (inboundPreviewError) throw inboundPreviewError;
 
         const statusMap = new Map(
           (statusRecords || []).map((s) => [normalizeLeadPhone(s.telefone), s]),
         );
         const profilesMap = new Map((profiles || []).map((profile) => [profile.id, profile.full_name]));
-        const contatosMap = new Map(
-          (contatos || []).map((contato) => [normalizeLeadPhone(contato.Telefone_Whatsapp), contato]),
-        );
-        const conversationMap = new Map(
-          (conversationRows || [])
-            .map((conversation) => {
-              const normalizedPhone = normalizeLeadPhone(conversation.telefone);
-              if (!normalizedPhone) return null;
-              return [normalizedPhone, conversation] as const;
-            })
-            .filter(
-              (entry): entry is readonly [string, NonNullable<typeof conversationRows>[number]] => Boolean(entry),
-            ),
-        );
-        const grouped = new Map<string, WhatsappMessageRow[]>();
-        console.log(`[whatsapp-conversations] mensagens_whatsapp rows=${rawMessages?.length || 0}`);
-
-        for (const message of (rawMessages || []) as LooseWhatsappMessageRow[]) {
-          const rawPhone = coercePhone(message.telefone_id);
-          const normalizedPhone = normalizeLeadPhone(rawPhone);
+        const contatosByLeadId = new Map((contatos || []).map((contato) => [contato.id, contato]));
+        const contatosMap = new Map<string, (typeof contatos)[number]>();
+        for (const contato of (contatos || [])) {
+          const normalizedPhone = normalizeLeadPhone(contato.Telefone_Whatsapp);
           if (!normalizedPhone) continue;
-          const current = grouped.get(normalizedPhone) || [];
-          current.push(message);
-          grouped.set(normalizedPhone, current);
+          const existing = contatosMap.get(normalizedPhone);
+          const nextName = contato.nome?.trim();
+          const existingName = existing?.nome?.trim();
+          if (!existing || (!existingName && nextName)) {
+            contatosMap.set(normalizedPhone, contato);
+          }
         }
 
-        const phones = new Set<string>([...grouped.keys(), ...conversationMap.keys()]);
+        // First occurrence per conversation_id is the most recent (already sorted desc)
+        const lastMessageMap = new Map<string, { conteudo: string | null; created_at: string }>();
+        for (const msg of (previewMessages || [])) {
+          if (!lastMessageMap.has(msg.conversation_id)) {
+            lastMessageMap.set(msg.conversation_id, { conteudo: msg.conteudo, created_at: msg.created_at });
+          }
+        }
+        const inboundSenderMap = new Map<string, string>();
+        for (const msg of (recentInboundMessages || [])) {
+          const senderName = msg.sender?.trim();
+          if (senderName && !inboundSenderMap.has(msg.conversation_id)) {
+            inboundSenderMap.set(msg.conversation_id, senderName);
+          }
+        }
 
-        const result = Array.from(phones)
-          .map((normalizedPhone) => {
-            const phoneMessages = grouped.get(normalizedPhone) || [];
-            const orderedMessages = sortWhatsappMessages(phoneMessages);
-            const latestMessage = orderedMessages.at(-1) || null;
+        const result = (conversationRows || [])
+          .map((conversation) => {
+            const normalizedPhone = normalizeLeadPhone(conversation.telefone);
             const statusRec = statusMap.get(normalizedPhone);
-            const contato = contatosMap.get(normalizedPhone);
-            const conversation = conversationMap.get(normalizedPhone);
+            const contatoByLeadId = conversation.lead_id ? contatosByLeadId.get(conversation.lead_id) : null;
+            const contato = contatoByLeadId || contatosMap.get(normalizedPhone);
+            const lastMsg = lastMessageMap.get(conversation.id);
+            const resolvedLeadName =
+              contato?.nome?.trim() ||
+              inboundSenderMap.get(conversation.id) ||
+              normalizedPhone;
 
             return {
-              id: conversation?.id || normalizedPhone,
-              telefone:
-                coercePhone(phoneMessages.find((message) => message.telefone_id)?.telefone_id) ||
-                conversation?.telefone ||
-                contato?.Telefone_Whatsapp ||
-                normalizedPhone,
-              lead_id: conversation?.lead_id || contato?.id || null,
-              lead_nome:
-                phoneMessages.find((message) => message.nome_lead && message.nome_lead.trim())?.nome_lead ||
-                contato?.nome ||
-                normalizedPhone,
-              nao_lidas: conversation?.nao_lidas || 0,
-              status: conversation?.status || "aberta",
-              ultima_mensagem_at: latestMessage?.created_at || conversation?.ultima_mensagem_at || null,
-              ultima_mensagem_preview: latestMessage?.mensagem || null,
+              id: conversation.id,
+              telefone: conversation.telefone || normalizedPhone,
+              lead_id: conversation.lead_id || contato?.id || null,
+              lead_nome: resolvedLeadName,
+              nao_lidas: conversation.nao_lidas || 0,
+              status: conversation.status || "aberta",
+              ultima_mensagem_at: lastMsg?.created_at || conversation.ultima_mensagem_at || null,
+              ultima_mensagem_preview: lastMsg?.conteudo || null,
               lead_kanban_status: statusRec?.status || "novo_lead",
               veiculo_interesse: statusRec?.veiculo_interesse || null,
               observacao: contato?.["observação"] || null,
-              responsavel_id: statusRec?.assigned_to || conversation?.responsavel_id || null,
+              responsavel_id: statusRec?.assigned_to || conversation.responsavel_id || null,
               assigned_user_name:
                 (statusRec?.assigned_to ? profilesMap.get(statusRec.assigned_to) : null) ||
-                (conversation?.responsavel_id ? profilesMap.get(conversation.responsavel_id) || null : null),
+                (conversation.responsavel_id ? profilesMap.get(conversation.responsavel_id) || null : null),
             };
           })
           .sort((a, b) => getMessageTimestamp({ created_at: b.ultima_mensagem_at }) - getMessageTimestamp({ created_at: a.ultima_mensagem_at }));
@@ -861,8 +1031,6 @@ export async function GET(request: Request) {
             (conversation) => conversation.responsavel_id === user.id || !conversation.responsavel_id,
           );
 
-          // Fallback para bases legadas: se existem conversas, mas o filtro por responsável
-          // esconder tudo, mantemos a inbox visível em vez de deixá-la vazia.
           if (scopedResult.length === 0 && result.length > 0) {
             return NextResponse.json(result);
           }
@@ -872,28 +1040,42 @@ export async function GET(request: Request) {
         return NextResponse.json(result);
       }
       case "whatsapp-messages": {
-        const whatsappClient = getWhatsappDataClient(supabase);
+        const waClient = getWhatsappDataClient(supabase);
+        const tid = tenantId ?? "00000000-0000-0000-0000-000000000001";
         const telefone = url.searchParams.get("telefone") || "";
         if (!telefone) return jsonError("telefone obrigatório", 400);
 
-        const { data, error } = await whatsappClient
-          .from("mensagens_whatsapp")
-          .select("*")
-          .eq("telefone_id", telefone)
-          .limit(500);
-        if (error) throw error;
+        const { data: conversation, error: convError } = await waClient
+          .from("conversations")
+          .select("id")
+          .eq("telefone", telefone)
+          .eq("tenant_id", tid)
+          .maybeSingle();
+        if (convError) throw convError;
 
-        const ordered = sortWhatsappMessages(((data || []) as LooseWhatsappMessageRow[]));
+        if (!conversation) return NextResponse.json([]);
+
+        const { data: messages, error: messagesError } = await waClient
+          .from("messages")
+          .select("id, conversation_id, conteudo, created_at, direcao, enviada_pelo_agente, sender, telefone, tipo, tipo_midia, url_midia")
+          .eq("conversation_id", conversation.id)
+          .eq("tenant_id", tid)
+          .order("created_at", { ascending: true })
+          .limit(500);
+        if (messagesError) throw messagesError;
+
         return NextResponse.json(
-          ordered.map((message, index) => ({
-            id: String(message.id ?? `${telefone}-${index}`),
-            conversation_id: telefone,
-            conteudo: message.mensagem || null,
+          (messages || []).map((message) => ({
+            id: String(message.id),
+            conversation_id: message.conversation_id,
+            conteudo: message.conteudo || null,
             created_at: message.created_at || new Date(0).toISOString(),
-            enviada_pelo_agente: isSellerMessage(message),
-            sender: isSellerMessage(message) ? "vendedor" : "lead",
-            telefone: coercePhone(message.telefone_id) || telefone,
-            tipo: "text",
+            enviada_pelo_agente: message.direcao === "outbound" || message.enviada_pelo_agente === true,
+            sender: message.direcao === "outbound" ? "vendedor" : "lead",
+            telefone: message.telefone || telefone,
+            tipo: message.tipo || "text",
+            tipo_midia: message.tipo_midia || null,
+            url_midia: message.url_midia || null,
           })),
         );
       }
@@ -911,7 +1093,7 @@ export async function POST(request: Request) {
     const url = new URL(request.url);
     const op = url.searchParams.get("op");
     const session = await requireSession(request);
-    const { supabase, user, canViewAllLeads, canAssignLeads } = session;
+    const { supabase, user, canViewAllLeads, canAssignLeads, tenantId } = session;
 
     switch (op) {
       case "lead": {
@@ -922,13 +1104,46 @@ export async function POST(request: Request) {
         if (error) throw error;
         return NextResponse.json({ ok: true });
       }
+      case "pipeline-column": {
+        const body = await parseJson<{ pipeline: PipelineKey; title: string }>(request);
+        const pipeline = normalizePipelineKey(body.pipeline);
+        await assertManagerCanEditPipeline(session, pipeline);
+
+        const existingColumns = await getPipelineColumns(session, pipeline);
+        const rawTitle = body.title?.trim();
+        if (!rawTitle) {
+          return jsonError("Informe um nome para a coluna.", 400);
+        }
+
+        const columnKey = ensureUniqueColumnKey(
+          slugifyColumnTitle(rawTitle),
+          existingColumns.map((column) => column.key),
+        );
+
+        const { error } = await supabase.from("pipeline_columns_config").insert({
+          tenant_id: tenantId!,
+          pipeline_key: pipeline,
+          column_key: columnKey,
+          title: rawTitle,
+          position: existingColumns.length,
+          is_default: false,
+          is_active: true,
+          color: existingColumns.at(-1)?.color || getDefaultPipelineColumns(pipeline).at(-1)?.color || "#3B82F6",
+        });
+        if (isMissingPipelineColumnsTable(error)) {
+          return jsonError(pipelineColumnsMigrationMessage(), 409);
+        }
+        if (error) throw error;
+        return NextResponse.json({ ok: true });
+      }
       case "prevenda-lead": {
         assertEssencialFeature(session);
         const body = await parseJson<{ nome: string; telefone: string }>(request);
+        const prevendaColumns = await getPipelineColumns(session, "prevenda");
         const { error } = await supabase.from("prevenda_contatos").insert({
           nome: body.nome,
           telefone_whatsapp: body.telefone,
-          status: "novo_lead",
+          status: getFirstPipelineColumnKey(prevendaColumns),
           assigned_to: canViewAllLeads ? null : user.id,
         });
         if (error) throw error;
@@ -1085,7 +1300,7 @@ export async function POST(request: Request) {
           nome_lead: body.nomeLead || null,
           enviado_pelo_vendedor: true,
           mensagem: body.conteudo,
-        });
+        } as never);
         if (mockSendError) throw mockSendError;
 
         return NextResponse.json({ ok: true });
@@ -1097,16 +1312,168 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true });
       }
       case "whatsapp-send-message": {
-        const whatsappClient = getWhatsappDataClient(supabase);
+        const waClient = getWhatsappDataClient(supabase);
+        const tid = tenantId ?? "00000000-0000-0000-0000-000000000001";
         const body = await parseJson<{ telefone: string; conteudo: string; nomeLead?: string | null }>(request);
-        const payload = {
-          telefone_id: body.telefone,
-          nome_lead: body.nomeLead || null,
-          enviado_pelo_vendedor: true,
-          mensagem: body.conteudo,
+        const { telefone, conteudo } = body;
+        if (!telefone || !conteudo) return jsonError("telefone e conteudo obrigatórios", 400);
+
+        type WhatsappWebhookCandidate = {
+          id: string;
+          nome_loja: string | null;
+          api_host?: string | null;
+          zapi_instance_id: string;
+          zapi_token: string;
+          zapi_client_token?: string | null;
         };
-        const { error } = await whatsappClient.from("mensagens_whatsapp").insert(payload);
-        if (error) throw error;
+
+        const candidateMap = new Map<string, WhatsappWebhookCandidate>();
+        const addCandidate = (candidate: WhatsappWebhookCandidate | null) => {
+          if (!candidate?.id) return;
+          if (!candidate.zapi_instance_id || !candidate.zapi_token) return;
+          if (!candidateMap.has(candidate.id)) {
+            candidateMap.set(candidate.id, candidate);
+          }
+        };
+
+        const formatSendError = async (response: Response, label: string) => {
+          const rawText = await response.text().catch(() => response.statusText);
+          const compactText = rawText.replace(/\s+/g, " ").trim();
+          const contentType = response.headers.get("content-type") || "";
+          const isHtml = contentType.includes("text/html") || compactText.startsWith("<!DOCTYPE html");
+          const normalizedText = compactText.toLowerCase();
+
+          if (isHtml) {
+            return `${label}: HTTP ${response.status} - serviço indisponível no provedor`;
+          }
+
+          if (normalizedText.includes("client-token")) {
+            return `${label}: Client-Token da Z-API não configurado`;
+          }
+
+          return `${label}: HTTP ${response.status}${compactText ? ` - ${compactText}` : ""}`;
+        };
+
+        const sendWhatsappMessage = async (candidate: WhatsappWebhookCandidate) => {
+          const isMegaApiInstance = candidate.zapi_instance_id.startsWith("megacode-");
+          const phoneDigits = telefone.replace(/\D/g, "");
+
+          if (isMegaApiInstance) {
+            const apiHost = candidate.api_host?.trim();
+            if (!apiHost) {
+              throw new Error("host da Mega API não configurado");
+            }
+
+            return fetch(`https://${apiHost}/rest/sendMessage/${candidate.zapi_instance_id}/text`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${candidate.zapi_token}` },
+              body: JSON.stringify({
+                messageData: {
+                  to: `${phoneDigits}@s.whatsapp.net`,
+                  text: conteudo,
+                },
+              }),
+            });
+          }
+
+          const zapiClientToken = candidate.zapi_client_token || process.env.ZAPI_CLIENT_TOKEN || "";
+          return fetch(
+            `https://api.z-api.io/instances/${candidate.zapi_instance_id}/token/${candidate.zapi_token}/send-text`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(zapiClientToken ? { "Client-Token": zapiClientToken } : {}),
+              },
+              body: JSON.stringify({ phone: phoneDigits, message: conteudo }),
+            },
+          );
+        };
+
+        // Find conversation + webhook config
+        const { data: conv } = await waClient
+          .from("conversations")
+          .select("id, zapi_webhook_id")
+          .eq("telefone", telefone)
+          .eq("tenant_id", tid)
+          .maybeSingle();
+
+        if (conv?.zapi_webhook_id) {
+          const { data } = await waClient
+            .from("zapi_webhooks")
+            .select("id, nome_loja, api_host, zapi_instance_id, zapi_token, zapi_client_token")
+            .eq("id", conv.zapi_webhook_id)
+            .maybeSingle();
+          addCandidate(data);
+        }
+
+        const { data: activeWebhooks, error: activeWebhooksError } = await waClient
+          .from("zapi_webhooks")
+          .select("id, nome_loja, api_host, zapi_instance_id, zapi_token, zapi_client_token")
+          .eq("tenant_id", tid)
+          .eq("ativo", true)
+          .order("created_at", { ascending: true });
+
+        if (activeWebhooksError) throw activeWebhooksError;
+        for (const webhook of activeWebhooks || []) {
+          addCandidate(webhook);
+        }
+
+        const candidates = [...candidateMap.values()];
+        if (!candidates.length) return jsonError("Nenhuma instância WhatsApp configurada", 400);
+
+        const attemptErrors: string[] = [];
+        let selectedCandidate: WhatsappWebhookCandidate | null = null;
+
+        for (const candidate of candidates) {
+          const providerLabel = candidate.zapi_instance_id.startsWith("megacode-") ? "Mega API" : "Z-API";
+          const candidateLabel = `${providerLabel}${candidate.nome_loja ? ` (${candidate.nome_loja})` : ""}`;
+
+          try {
+            const sendRes = await sendWhatsappMessage(candidate);
+            if (sendRes.ok) {
+              selectedCandidate = candidate;
+              break;
+            }
+            attemptErrors.push(await formatSendError(sendRes, candidateLabel));
+          } catch (error) {
+            attemptErrors.push(
+              `${candidateLabel}: ${error instanceof Error ? error.message : "falha inesperada ao enviar"}`,
+            );
+          }
+        }
+
+        if (!selectedCandidate) {
+          return jsonError(
+            `Erro ao enviar mensagem. ${attemptErrors.join(" | ") || "Nenhuma instância aceitou a requisição."}`,
+            502,
+          );
+        }
+
+        // Salvar mensagem enviada na tabela messages
+        const agora = new Date().toISOString();
+        if (conv?.id) {
+          await Promise.all([
+            waClient.from("messages").insert({
+              conversation_id: conv.id,
+              telefone,
+              sender: "agente",
+              conteudo,
+              tipo: "text",
+              direcao: "outbound",
+              enviada_pelo_agente: true,
+              tenant_id: tid,
+            }),
+            waClient
+              .from("conversations")
+              .update({
+                ultima_mensagem_at: agora,
+                ...(selectedCandidate.id !== conv.zapi_webhook_id ? { zapi_webhook_id: selectedCandidate.id } : {}),
+              })
+              .eq("id", conv.id),
+          ]);
+        }
+
         return NextResponse.json({ ok: true });
       }
       case "avatar": {
@@ -1212,7 +1579,11 @@ export async function PATCH(request: Request) {
           updated_at: new Date().toISOString(),
         };
 
-        if ("status" in body) updatePayload.status = body.status as LeadStatus;
+        let leadsColumns: PipelineColumn[] | null = null;
+        if ("status" in body) {
+          leadsColumns = await ensureValidPipelineStatus(session, "leads", String(body.status || ""));
+          updatePayload.status = body.status as LeadStatus;
+        }
         if (assignedToValue !== undefined) updatePayload.assigned_to = (assignedToValue as string | null) ?? null;
         if ("veiculoInteresse" in body) updatePayload.veiculo_interesse = (body.veiculoInteresse as string) || null;
         if ("observacao" in body) updatePayload.observacao = (body.observacao as string) || null;
@@ -1229,9 +1600,10 @@ export async function PATCH(request: Request) {
           const { error } = await supabase.from("lead_status").update(updatePayload).eq("telefone", telefone);
           if (error) throw error;
         } else {
+          const columns = leadsColumns || await getPipelineColumns(session, "leads");
           const insertPayload: Database["public"]["Tables"]["lead_status"]["Insert"] = {
             telefone,
-            status: (body.status as LeadStatus | undefined) ?? "novo_lead",
+            status: (body.status as LeadStatus | undefined) ?? getFirstPipelineColumnKey(columns),
             assigned_to:
               assignedToValue !== undefined
                 ? ((assignedToValue as string | null) ?? null)
@@ -1246,6 +1618,55 @@ export async function PATCH(request: Request) {
           if (error) throw error;
         }
 
+        return NextResponse.json({ ok: true });
+      }
+      case "pipeline-column": {
+        const body = await parseJson<{ pipeline: PipelineKey; action: "rename"; key: string; title: string }>(request);
+        const pipeline = normalizePipelineKey(body.pipeline);
+        await assertManagerCanEditPipeline(session, pipeline);
+
+        const title = body.title?.trim();
+        if (!body.key || !title) {
+          return jsonError("Coluna inválida.", 400);
+        }
+
+        const { error } = await supabase
+          .from("pipeline_columns_config")
+          .update({ title })
+          .eq("pipeline_key", pipeline)
+          .eq("column_key", body.key);
+        if (isMissingPipelineColumnsTable(error)) {
+          return jsonError(pipelineColumnsMigrationMessage(), 409);
+        }
+        if (error) throw error;
+        return NextResponse.json({ ok: true });
+      }
+      case "pipeline-columns-reorder": {
+        const body = await parseJson<{ pipeline: PipelineKey; columnKeys: string[] }>(request);
+        const pipeline = normalizePipelineKey(body.pipeline);
+        await assertManagerCanEditPipeline(session, pipeline);
+
+        const existingColumns = await getPipelineColumns(session, pipeline);
+        const currentKeys = existingColumns.map((column) => column.key).sort().join("|");
+        const nextKeys = [...(body.columnKeys || [])].sort().join("|");
+
+        if (!body.columnKeys?.length || currentKeys !== nextKeys) {
+          return jsonError("Ordem de colunas inválida.", 400);
+        }
+
+        const updates = body.columnKeys.map((columnKey, index) =>
+          supabase
+            .from("pipeline_columns_config")
+            .update({ position: index })
+            .eq("pipeline_key", pipeline)
+            .eq("column_key", columnKey),
+        );
+        const results = await Promise.all(updates);
+        const failed = results.find((result) => result.error);
+        if (failed?.error && isMissingPipelineColumnsTable(failed.error)) {
+          return jsonError(pipelineColumnsMigrationMessage(), 409);
+        }
+        if (failed?.error) throw failed.error;
         return NextResponse.json({ ok: true });
       }
       case "lead": {
@@ -1304,6 +1725,7 @@ export async function PATCH(request: Request) {
       case "prevenda-status": {
         assertEssencialFeature(session);
         const body = await parseJson<{ id: number; status: string }>(request);
+        await ensureValidPipelineStatus(session, "prevenda", body.status);
         const { error } = await supabase.from("prevenda_contatos").update({ status: body.status }).eq("id", body.id);
         if (error) throw error;
         return NextResponse.json({ ok: true });
@@ -1311,6 +1733,9 @@ export async function PATCH(request: Request) {
       case "prevenda-lead": {
         assertEssencialFeature(session);
         const body = await parseJson<{ id: number; updates: Record<string, unknown> }>(request);
+        if (body.updates.status) {
+          await ensureValidPipelineStatus(session, "prevenda", String(body.updates.status));
+        }
         const updates = {
           ...body.updates,
           assigned_to: user.id || (body.updates.assigned_to as string | null),
@@ -1468,6 +1893,63 @@ export async function DELETE(request: Request) {
       case "task": {
         const { error } = await supabase.from("tarefas").delete().eq("id", body.id as string);
         if (error) throw error;
+        return NextResponse.json({ ok: true });
+      }
+      case "pipeline-column": {
+        const pipeline = normalizePipelineKey(body.pipeline);
+        await assertManagerCanEditPipeline(session, pipeline);
+
+        const columnKey = String(body.key || "").trim();
+        const destinationKey = String(body.destinationKey || "").trim();
+        if (!columnKey || !destinationKey || columnKey === destinationKey) {
+          return jsonError("Destino de remanejamento inválido.", 400);
+        }
+
+        const columns = await getPipelineColumns(session, pipeline);
+        if (!columns.some((column) => column.key === columnKey) || !columns.some((column) => column.key === destinationKey)) {
+          return jsonError("Coluna informada não existe para este pipeline.", 400);
+        }
+
+        if (pipeline === "leads") {
+          const { error: moveError } = await supabase
+            .from("lead_status")
+            .update({ status: destinationKey, updated_at: new Date().toISOString() })
+            .eq("status", columnKey);
+          if (moveError) throw moveError;
+        } else {
+          const { error: moveError } = await supabase
+            .from("prevenda_contatos")
+            .update({ status: destinationKey, updated_at: new Date().toISOString() })
+            .eq("status", columnKey);
+          if (moveError) throw moveError;
+        }
+
+        const { error } = await supabase
+          .from("pipeline_columns_config")
+          .delete()
+          .eq("pipeline_key", pipeline)
+          .eq("column_key", columnKey);
+        if (isMissingPipelineColumnsTable(error)) {
+          return jsonError(pipelineColumnsMigrationMessage(), 409);
+        }
+        if (error) throw error;
+
+        const remainingColumns = columns.filter((column) => column.key !== columnKey);
+        const reorderResults = await Promise.all(
+          remainingColumns.map((column, index) =>
+            supabase
+              .from("pipeline_columns_config")
+              .update({ position: index })
+              .eq("pipeline_key", pipeline)
+              .eq("column_key", column.key),
+          ),
+        );
+        const failed = reorderResults.find((result) => result.error);
+        if (failed?.error && isMissingPipelineColumnsTable(failed.error)) {
+          return jsonError(pipelineColumnsMigrationMessage(), 409);
+        }
+        if (failed?.error) throw failed.error;
+
         return NextResponse.json({ ok: true });
       }
       default:

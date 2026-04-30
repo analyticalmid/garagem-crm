@@ -1,34 +1,18 @@
 import { useRef } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
-import { Lead, LeadStatus } from "@/types/lead";
+import { Lead } from "@/types/lead";
 import { LeadCard } from "./LeadCard";
 import { cn } from "@/lib/utils";
 
 interface KanbanColumnProps {
-  id: LeadStatus;
+  id: string;
   title: string;
   leads: Lead[];
-  colorClass: string;
+  color: string;
   onLeadClick?: (lead: Lead) => void;
 }
 
-const colorMap: Record<string, { dot: string }> = {
-  "kanban-novo": {
-    dot: "bg-[hsl(var(--kanban-novo))]",
-  },
-  "kanban-negociando": {
-    dot: "bg-[hsl(var(--kanban-negociando))]",
-  },
-  "kanban-vendido": {
-    dot: "bg-[hsl(var(--kanban-vendido))]",
-  },
-  "kanban-perdido": {
-    dot: "bg-[hsl(var(--kanban-perdido))]",
-  },
-};
-
-export function KanbanColumn({ id, title, leads, colorClass, onLeadClick }: KanbanColumnProps) {
-  const colors = colorMap[colorClass];
+export function KanbanColumn({ id, title, leads, color, onLeadClick }: KanbanColumnProps) {
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -54,7 +38,7 @@ export function KanbanColumn({ id, title, leads, colorClass, onLeadClick }: Kanb
       <div className="px-5 py-4 border-b border-white/[0.04]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={cn("w-2 h-2 rounded-full pulse-dot", colors.dot)} />
+            <div className="w-2 h-2 rounded-full pulse-dot" style={{ backgroundColor: color }} />
             <h3 className="font-semibold text-sm text-foreground">{title}</h3>
           </div>
           <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-muted-foreground tabular-nums">
@@ -92,7 +76,7 @@ export function KanbanColumn({ id, title, leads, colorClass, onLeadClick }: Kanb
                       snapshot.isDragging && "opacity-90 scale-[1.01] cursor-grabbing"
                     )}
                   >
-                    <LeadCard lead={lead} />
+                    <LeadCard lead={lead} columnColor={color} />
                   </div>
                 )}
               </Draggable>

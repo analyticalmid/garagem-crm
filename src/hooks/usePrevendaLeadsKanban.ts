@@ -1,9 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { PrevendaLead, PrevendaLeadStatus, PREVENDA_KANBAN_COLUMNS } from '@/types/prevendaLead';
+import { PrevendaLead, PrevendaLeadStatus } from '@/types/prevendaLead';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch, dataUrl } from '@/lib/api';
+import { buildPipelineGroups, PipelineColumn } from '@/lib/kanbanColumns';
+
+type PrevendaLeadsResponse = {
+  leads: PrevendaLead[];
+  columns: PipelineColumn[];
+};
 
 export function usePrevendaLeadsKanban() {
   const { toast } = useToast();
@@ -28,13 +34,15 @@ export function usePrevendaLeadsKanban() {
   });
 
   // Fetch prevenda leads
-  const { data: rawLeads = [], isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['prevenda-leads'],
     staleTime: 45 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    queryFn: () => apiFetch<any[]>(dataUrl('prevenda-leads')),
+    queryFn: () => apiFetch<PrevendaLeadsResponse>(dataUrl('prevenda-leads')),
   });
+  const rawLeads = data?.leads ?? [];
+  const columns = data?.columns ?? [];
 
   // Map leads with assigned user names
   const leads: PrevendaLead[] = useMemo(() => {
@@ -85,22 +93,7 @@ export function usePrevendaLeadsKanban() {
   }, [leads, debouncedSearch]);
 
   // Group by status
-  const groupedLeads = useMemo(() => {
-    const groups: Record<PrevendaLeadStatus, PrevendaLead[]> = {
-      novo_lead: [],
-      negociando: [],
-      em_analise: [],
-      comprado: [],
-      standby: [],
-    };
-    filteredLeads.forEach(lead => {
-      const status = lead.status || 'novo_lead';
-      if (groups[status]) {
-        groups[status].push(lead);
-      }
-    });
-    return groups;
-  }, [filteredLeads]);
+  const groupedLeads = useMemo(() => buildPipelineGroups(filteredLeads, columns), [columns, filteredLeads]);
 
   // Update status mutation with optimistic UI
   const updateStatusMutation = useMutation({
@@ -109,16 +102,21 @@ export function usePrevendaLeadsKanban() {
     },
     onMutate: async ({ id, newStatus }) => {
       await queryClient.cancelQueries({ queryKey: ['prevenda-leads'] });
-      const previousLeads = queryClient.getQueryData(['prevenda-leads']);
+      const previousData = queryClient.getQueryData<PrevendaLeadsResponse>(['prevenda-leads']);
       
-      queryClient.setQueryData<typeof rawLeads>(['prevenda-leads'], (old) =>
-        old?.map(lead => lead.id === id ? { ...lead, status: newStatus } : lead)
+      queryClient.setQueryData<PrevendaLeadsResponse>(['prevenda-leads'], (old) =>
+        old
+          ? {
+              ...old,
+              leads: old.leads.map((lead) => (lead.id === id ? { ...lead, status: newStatus } : lead)),
+            }
+          : old
       );
       
-      return { previousLeads };
+      return { previousData };
     },
     onError: (err, _, context) => {
-      queryClient.setQueryData(['prevenda-leads'], context?.previousLeads);
+      queryClient.setQueryData(['prevenda-leads'], context?.previousData);
       toast({
         title: 'Erro ao mover lead',
         description: 'Não foi possível atualizar o status.',
@@ -160,7 +158,7 @@ export function usePrevendaLeadsKanban() {
   return {
     leads: filteredLeads,
     groupedLeads,
-    columns: PREVENDA_KANBAN_COLUMNS,
+    columns,
     isLoading,
     searchTerm,
     setSearchTerm,

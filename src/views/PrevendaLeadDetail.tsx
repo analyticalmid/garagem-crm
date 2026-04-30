@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PrevendaLeadStatus, PREVENDA_KANBAN_COLUMNS } from '@/types/prevendaLead';
+import type { PipelineColumn } from '@/lib/kanbanColumns';
 
 function formatPhone(phone: string | null): string {
   if (!phone) return '';
@@ -79,6 +80,11 @@ export default function PrevendaLeadDetail() {
     queryFn: async () => {
       return apiFetch<{ id: string; full_name: string | null; email: string | null }[]>(dataUrl('profiles-active'));
     },
+  });
+  const { data: columns = PREVENDA_KANBAN_COLUMNS.map((column) => ({ key: column.id, title: column.title, color: column.color })) as PipelineColumn[] } = useQuery({
+    queryKey: ['pipeline-columns', 'prevenda'],
+    queryFn: async () => apiFetch<PipelineColumn[]>(dataUrl('pipeline-columns', { pipeline: 'prevenda' })),
+    staleTime: 60 * 1000,
   });
 
   // Populate form when lead loads
@@ -204,8 +210,8 @@ export default function PrevendaLeadDetail() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PREVENDA_KANBAN_COLUMNS.map((col) => (
-                    <SelectItem key={col.id} value={col.id}>
+                  {columns.map((col) => (
+                    <SelectItem key={col.key} value={col.key}>
                       {col.title}
                     </SelectItem>
                   ))}

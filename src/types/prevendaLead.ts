@@ -1,9 +1,6 @@
-export type PrevendaLeadStatus = 
-  | 'novo_lead' 
-  | 'negociando' 
-  | 'em_analise' 
-  | 'comprado' 
-  | 'standby';
+import { getDefaultPipelineColumns, type PipelineColumn } from "@/lib/kanbanColumns";
+
+export type PrevendaLeadStatus = string;
 
 export interface PrevendaLead {
   id: number;
@@ -11,6 +8,7 @@ export interface PrevendaLead {
   telefone_whatsapp: string | null;
   created_at: string;
   status: PrevendaLeadStatus;
+  statusColor?: string;
   assigned_to: string | null;
   assignedUserName?: string | null;
   observacao: string | null;
@@ -25,14 +23,14 @@ export interface PrevendaLead {
   updated_at: string | null;
 }
 
-export const PREVENDA_KANBAN_COLUMNS: { 
-  id: PrevendaLeadStatus; 
-  title: string; 
-  color: string 
-}[] = [
-  { id: 'novo_lead', title: 'Novo Lead', color: 'prevenda-novo' },
-  { id: 'negociando', title: 'Negociando', color: 'prevenda-negociando' },
-  { id: 'em_analise', title: 'Em Análise', color: 'prevenda-analise' },
-  { id: 'comprado', title: 'Comprado', color: 'prevenda-comprado' },
-  { id: 'standby', title: 'Stand by', color: 'prevenda-standby' },
-];
+export const PREVENDA_KANBAN_COLUMNS: {
+  id: PrevendaLeadStatus;
+  title: string;
+  color: string;
+}[] = getDefaultPipelineColumns("prevenda").map((column) => ({
+  id: column.key,
+  title: column.title,
+  color: column.color,
+}));
+
+export type PrevendaPipelineColumn = PipelineColumn;

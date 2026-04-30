@@ -9,16 +9,9 @@ import { PrevendaLead } from '@/types/prevendaLead';
 interface PrevendaLeadCardProps {
   lead: PrevendaLead;
   index: number;
+  columnColor?: string;
   onClick?: () => void;
 }
-
-const statusAccentMap = {
-  novo_lead: '#60A5FA',
-  negociando: '#FB923C',
-  em_analise: '#FACC15',
-  comprado: '#2DD4BF',
-  standby: '#94A3B8',
-} as const;
 
 function formatPhone(phone: string | null): string {
   if (!phone) return '';
@@ -42,7 +35,7 @@ function formatPhone(phone: string | null): string {
   return phone;
 }
 
-const PrevendaLeadCardComponent: React.FC<PrevendaLeadCardProps> = ({ lead, index, onClick }) => {
+const PrevendaLeadCardComponent: React.FC<PrevendaLeadCardProps> = ({ lead, index, columnColor, onClick }) => {
   let isDragging = false;
   const referenceDate = lead.updated_at || lead.created_at;
   const daysIdle = differenceInDays(new Date(), new Date(referenceDate));
@@ -52,7 +45,7 @@ const PrevendaLeadCardComponent: React.FC<PrevendaLeadCardProps> = ({ lead, inde
     .slice(0, 2)
     .map((chunk) => chunk[0]?.toUpperCase())
     .join('') || 'SL';
-  const accentColor = statusAccentMap[lead.status];
+  const accentColor = columnColor || lead.statusColor || '#60A5FA';
   const timeAgo = formatDistanceToNow(new Date(referenceDate), {
     addSuffix: true,
     locale: ptBR,

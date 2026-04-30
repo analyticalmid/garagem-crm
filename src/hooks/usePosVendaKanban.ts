@@ -229,7 +229,8 @@ function buildOpportunityCard(opportunity: PosVendaOpportunityRow): PosVendaInse
 export function usePosVendaKanban() {
   const queryClient = useQueryClient();
   const { user, canViewAllLeads } = useAuth();
-  const { leadsByStatus, isLoading: leadsLoading } = useLeadsKanban();
+  const { leads, isLoading: leadsLoading } = useLeadsKanban();
+  const soldLeads = useMemo(() => leads.filter((lead) => lead.status === "vendido"), [leads]);
 
   const { data: rows = [], isLoading: cardsLoading, error } = useQuery({
     queryKey: ["pos-venda-cards", user?.id, canViewAllLeads],
@@ -262,7 +263,7 @@ export function usePosVendaKanban() {
     }
 
     const existingSourceKeys = new Set(rows.map((row) => row.source_key));
-    const missingLeadFlowCards = leadsByStatus.vendido
+    const missingLeadFlowCards = soldLeads
       .map(buildLeadFlowCard)
       .filter((card): card is PosVendaInsert => Boolean(card))
       .filter((card) => !existingSourceKeys.has(card.source_key));
@@ -283,7 +284,7 @@ export function usePosVendaKanban() {
     leadsLoading,
     cardsLoading,
     opportunitiesLoading,
-    leadsByStatus.vendido,
+    soldLeads,
     opportunities,
     syncAutomaticCardsMutation,
   ]);
@@ -379,7 +380,7 @@ export function usePosVendaKanban() {
     cards,
     automaticCardsCount,
     smartCardsCount,
-    soldLeadsCount: leadsByStatus.vendido.length,
+    soldLeadsCount: soldLeads.length,
     isLoading: cardsLoading || leadsLoading || opportunitiesLoading,
     error,
     createCard: createCardMutation.mutateAsync,

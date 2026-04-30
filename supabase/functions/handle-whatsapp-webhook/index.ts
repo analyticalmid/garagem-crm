@@ -248,16 +248,75 @@ Deno.serve(async (req: Request) => {
   // 4. Inserir mensagem
   // -------------------------------------------------------------------------
   const direcao = normalized.fromMe ? "outbound" : "inbound";
-  await supabase.from("messages").upsert(
-    { conversation_id: conversa.id, telefone: phone, sender: senderName, conteudo: texto, tipo: tipoMidia ?? "text", tipo_midia: tipoMidia, url_midia: urlMidia, direcao, enviada_pelo_agente: normalized.fromMe, zapi_msg_id: messageId, tenant_id: tenantId },
-    { onConflict: "zapi_msg_id", ignoreDuplicates: true },
-  );
+  const messagePayload = {
+    conversation_id: conversa.id,
+    telefone: phone,
+    sender: senderName,
+    conteudo: texto,
+    tipo: tipoMidia ?? "text",
+    tipo_midia: tipoMidia,
+    url_midia: urlMidia,
+    direcao,
+    enviada_pelo_agente: normalized.fromMe,
+    zapi_msg_id: messageId,
+    tenant_id: tenantId,
+  };
+
+  if (normalized.fromMe) {
+    const recentThreshold = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { data: existingOutbound } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("conversation_id", conversa.id)
+      .eq("tenant_id", tenantId)
+      .eq("direcao", "outbound")
+      .eq("telefone", phone)
+      .eq("conteudo", texto)
+      .is("zapi_msg_id", null)
+      .gte("created_at", recentThreshold)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingOutbound?.id) {
+      await supabase
+        .from("messages")
+        .update({
+          sender: senderName,
+          tipo: tipoMidia ?? "text",
+          tipo_midia: tipoMidia,
+          url_midia: urlMidia,
+          enviada_pelo_agente: true,
+          zapi_msg_id: messageId,
+        })
+        .eq("id", existingOutbound.id);
+    } else {
+      await supabase.from("messages").upsert(messagePayload, {
+        onConflict: "zapi_msg_id",
+        ignoreDuplicates: true,
+      });
+    }
+  } else {
+    await supabase.from("messages").upsert(messagePayload, {
+      onConflict: "zapi_msg_id",
+      ignoreDuplicates: true,
+    });
+  }
 
   // -------------------------------------------------------------------------
   // 5. Upsert lead_status no Kanban (apenas para mensagens do cliente)
   // -------------------------------------------------------------------------
   let novoStatus = "novo_lead";
   if (!normalized.fromMe) {
+    const { data: activeColumns } = await supabase
+      .from("pipeline_columns_config")
+      .select("column_key, position")
+      .eq("tenant_id", tenantId)
+      .eq("pipeline_key", "leads")
+      .eq("is_active", true)
+      .order("position", { ascending: true });
+
+    const primeiroStatus = activeColumns?.[0]?.column_key || "novo_lead";
     const { data: leadAtual } = await supabase
       .from("lead_status")
       .select("status")
@@ -265,7 +324,9 @@ Deno.serve(async (req: Request) => {
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
-    novoStatus = !leadAtual?.status || leadAtual.status === "perdido" ? "novo_lead" : leadAtual.status;
+    const statusAtual = leadAtual?.status;
+    const statusValido = statusAtual && (activeColumns?.some((column) => column.column_key === statusAtual) ?? false);
+    novoStatus = statusValido ? statusAtual : primeiroStatus;
 
     await supabase.from("lead_status").upsert(
       { telefone: phone, status: novoStatus, tenant_id: tenantId, ultimo_contato_em: agora },
